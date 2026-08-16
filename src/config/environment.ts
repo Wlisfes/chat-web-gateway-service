@@ -2,8 +2,8 @@ import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-option
 import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
 
 export function validateEnvironment(environment: Record<string, unknown>): Record<string, unknown> {
-    parsePort(environment.PORT, 8080, 'PORT')
-    parsePort(environment.NACOS_REGISTER_PORT ?? environment.PORT, 8080, 'NACOS_REGISTER_PORT')
+    parsePort(environment.PORT, 3999, 'PORT')
+    parsePort(environment.NACOS_REGISTER_PORT ?? environment.PORT, 3999, 'NACOS_REGISTER_PORT')
     parsePositiveInteger(environment.GATEWAY_PROXY_TIMEOUT_MS, 30_000, 'GATEWAY_PROXY_TIMEOUT_MS')
     parseNonNegativeInteger(environment.RATE_LIMIT_MAX, 300, 'RATE_LIMIT_MAX')
     parsePositiveInteger(environment.RATE_LIMIT_WINDOW_MS, 60_000, 'RATE_LIMIT_WINDOW_MS')
@@ -19,7 +19,7 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
 export function validateRemoteConfig(config: Record<string, unknown>): void {
     const server = getOptionalRecord(config.server, 'server')
     if (server?.port !== undefined) {
-        parsePort(server.port, 8080, 'server.port')
+        parsePort(server.port, 3999, 'server.port')
     }
 
     const gateway = getOptionalRecord(config.gateway, 'gateway')

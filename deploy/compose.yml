@@ -17,11 +17,11 @@ services:
             - .env
         environment:
             NODE_ENV: production
-            PORT: 3000
+            PORT: 3999
             TZ: ${TZ:-Asia/Shanghai}
-            NACOS_REGISTER_PORT: ${NACOS_REGISTER_PORT:-3000}
+            NACOS_REGISTER_PORT: ${NACOS_REGISTER_PORT:-3999}
         ports:
-            - '${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-8080}:3000'
+            - '${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-3999}:3999'
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         networks:
