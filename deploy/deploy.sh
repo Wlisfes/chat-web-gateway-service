@@ -52,7 +52,7 @@ docker pull "$IMAGE"
 
 echo "Starting $SERVICE"
 deployment_started=1
-if ! compose up -d --no-deps --remove-orphans "$SERVICE"; then
+if ! compose up -d --no-deps "$SERVICE"; then
     rollback
     exit 1
 fi

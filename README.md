@@ -115,12 +115,12 @@ nacos:
 
 ## 部署
 
-1. Docker 主机创建 `/opt/chat-web-gateway-service/.env`，内容参考 `deploy/.env.example`。
+1. 首次部署会自动从 `deploy/.env.example` 创建 `/opt/chat-web-gateway-service/.env`；需要覆盖实例参数时直接修改服务器文件。
 2. 确认 `chat-web-infrastructure` 外部网络已经存在，Nacos 和账号服务位于该网络。
 3. GitHub 仓库配置 `production-home`、`production-company` Environment，以及对应自托管 Runner。
-4. 合并到 `master` 后，流水线构建并推送 GHCR 镜像，然后滚动部署并执行健康检查。
+4. 合并到 `main` 后，流水线构建并推送 GHCR 镜像，然后滚动部署并执行健康检查。
 
-开发分支使用 `developer`，`master` 只接受合并后的稳定代码。
+开发分支使用 `developer`，`main` 只接受合并后的稳定代码。所有微服务容器归属 `chat-web-service` Compose 项目；独立部署脚本不会清理同组的其他服务。
 
 ## 注意事项
 
