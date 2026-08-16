@@ -3,7 +3,7 @@ name: Build and deploy
 on:
     push:
         branches:
-            - master
+            - main
     workflow_dispatch:
 
 jobs:
@@ -101,7 +101,6 @@ jobs:
                   docker info >/dev/null
                   mkdir -p "$DEPLOY_PATH"
                   test -w "$DEPLOY_PATH" || { echo "$DEPLOY_PATH is not writable by the runner user" >&2; exit 1; }
-                  test -f "$DEPLOY_PATH/.env" || { echo "Missing $DEPLOY_PATH/.env" >&2; exit 1; }
 
             - name: Install deployment files
               shell: bash
@@ -109,6 +108,11 @@ jobs:
                   set -eu
                   install -m 0644 deploy/compose.yml "$DEPLOY_PATH/compose.yml"
                   install -m 0755 deploy/deploy.sh "$DEPLOY_PATH/deploy.sh"
+                  install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env.example"
+                  if [ ! -f "$DEPLOY_PATH/.env" ]; then
+                    install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env"
+                    echo "Initialized $DEPLOY_PATH/.env from deploy/.env.example"
+                  fi
 
             - name: Pull and deploy image
               shell: bash

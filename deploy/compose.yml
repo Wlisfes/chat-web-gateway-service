@@ -1,4 +1,4 @@
-name: chat-web-gateway-service
+name: chat-web-service
 
 x-logging: &default-logging
     driver: json-file
