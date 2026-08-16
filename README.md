@@ -11,7 +11,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 - 网关自身可注册到 Nacos，并在退出时注销临时实例。
 - 支持普通 HTTP 请求和 WebSocket Upgrade 转发。
 - 统一生成或透传 `X-Request-Id`，向下游传递来源信息。
-- 提供动态 CORS 白名单、安全响应头、基础限流、Swagger 和健康检查。
+- 提供动态 CORS 白名单、安全响应头、基础限流、Knife4j 聚合文档和健康检查。
 - Docker 镜像、双 Runner 自动部署以及失败回滚。
 
 ## 路由规则
@@ -33,9 +33,10 @@ yarn dev
 
 默认访问地址：
 
-- 网关信息：`http://127.0.0.1:3999/`
+- Knife4j 聚合文档：`http://127.0.0.1:3999/`（自动跳转到 `/doc.html`）
+- 网关信息：`http://127.0.0.1:3999/gateway`
 - 健康检查：`http://127.0.0.1:3999/health`
-- Swagger：`http://127.0.0.1:3999/api/swagger`
+- 网关 Swagger：`http://127.0.0.1:3999/api/swagger`
 - 账号服务：`http://127.0.0.1:3999/api/account/**`
 
 如果本地没有 Nacos，可以关闭配置中心和服务发现：
@@ -128,4 +129,4 @@ nacos:
 - 只有网关位于可信 Nginx、负载均衡器后方时才将 Nacos `gateway.trustProxy` 设置为 `true`。
 - 跨宿主机使用 Nacos 时，应将 `NACOS_REGISTER_IP` 设置成其他节点能够访问的地址。
 - 当前限流状态存储在单个网关进程内；网关多副本部署后，如需全局限流应接入 Redis 或使用 APISIX/Kong 等专用网关。
-- Swagger 当前描述网关自己的接口；业务服务文档聚合应在各服务统一暴露 OpenAPI JSON 后增加。
+- Knife4j 根据 `gateway.routes` 聚合网关及业务服务文档；业务服务必须统一暴露 `/api/swagger-json`。

@@ -1,5 +1,5 @@
-import { Controller, Get } from '@nestjs/common'
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { Controller, Get, Redirect } from '@nestjs/common'
+import { ApiFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { GatewayService } from '@/modules/gateway/gateway.service'
 
 @ApiTags('网关')
@@ -8,6 +8,14 @@ export class GatewayController {
     constructor(private readonly gatewayService: GatewayService) {}
 
     @Get()
+    @Redirect('/doc.html', 302)
+    @ApiOperation({ summary: '打开 Knife4j 聚合文档' })
+    @ApiFoundResponse({ description: '跳转到 /doc.html' })
+    openDocumentation() {
+        return { url: '/doc.html' }
+    }
+
+    @Get('gateway')
     @ApiOperation({ summary: '查看网关信息及已配置路由' })
     @ApiOkResponse({ description: '网关信息' })
     getInfo() {
