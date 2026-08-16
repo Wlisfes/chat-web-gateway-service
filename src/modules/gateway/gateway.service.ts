@@ -13,7 +13,8 @@ export class GatewayService {
         return {
             name: 'chat-web-gateway-service',
             description: 'Chat Web 微服务统一 API 网关',
-            swagger: '/api/swagger',
+            documentation: '/doc.html',
+            openapi: '/api/swagger-json',
             health: '/health',
             routes: this.proxyService.getRoutes().map(route => ({
                 id: route.id,

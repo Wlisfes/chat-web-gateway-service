@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
+import { knife4jSetup } from 'nest-knife4j'
 import { AppModule } from '@/app.module'
 import { requestContextMiddleware } from '@/common/request-context.middleware'
 import { ServiceConfigService } from '@/modules/config/config.service'
@@ -66,6 +67,23 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup('api/swagger', app, swaggerDocument, {
         jsonDocumentUrl: '/api/swagger-json'
     })
+    const getKnife4jServices = () => [
+        {
+            name: '网关服务',
+            url: '/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/swagger'
+        },
+        ...proxyService.getRoutes().map(route => ({
+            name: route.serviceName,
+            url: `${route.prefix}/api/swagger-json`,
+            swaggerVersion: '3.0.0',
+            location: `${route.prefix}/api/swagger`,
+            servicePath: route.prefix
+        }))
+    ]
+    expressApplication.get('/services.json', (_request, response) => response.json(getKnife4jServices()))
+    knife4jSetup(app, getKnife4jServices())
 
     await app.init()
     if (serviceConfig.getTrustProxy()) {
@@ -97,7 +115,8 @@ async function bootstrap(): Promise<void> {
     await app.listen(port, '0.0.0.0')
 
     logger.log(`Chat Web 网关已启动：http://0.0.0.0:${port}`)
-    logger.log(`Swagger 文档：http://0.0.0.0:${port}/api/swagger`)
+    logger.log(`Knife4j 聚合文档：http://0.0.0.0:${port}/doc.html`)
+    logger.log(`网关 OpenAPI 文档：http://0.0.0.0:${port}/api/swagger`)
 }
 
 void bootstrap().catch(error => {

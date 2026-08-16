@@ -2170,6 +2170,13 @@ neo-async@^2.6.2:
   resolved "https://registry.npmmirror.com/neo-async/-/neo-async-2.6.2.tgz#b4aafb93e3aeb2d8174ca53cf163ab7d7308305f"
   integrity sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==
 
+nest-knife4j@1.0.1:
+  version "1.0.1"
+  resolved "https://registry.npmmirror.com/nest-knife4j/-/nest-knife4j-1.0.1.tgz#9774ab60ee9ee8e65eb47bba0f08ada883ec9e82"
+  integrity sha512-TD1LmxzclBddOygIDIRjr3jIwj+C3dp69G4Sy+QwAiiuQQQAxwaGXioCB3ibr/SLQ9nuR8klYehzS3HjS32Nfw==
+  dependencies:
+    user "^0.0.0"
+
 node-abort-controller@^3.0.1:
   version "3.1.1"
   resolved "https://registry.npmmirror.com/node-abort-controller/-/node-abort-controller-3.1.1.tgz#a94377e964a9a37ac3976d848cb5c765833b8548"
@@ -2947,6 +2954,11 @@ urllib@^2.29.1, urllib@^2.33.3:
     qs "^6.4.0"
     statuses "^1.3.1"
     utility "^1.16.1"
+
+user@^0.0.0:
+  version "0.0.0"
+  resolved "https://registry.npmmirror.com/user/-/user-0.0.0.tgz#f27f1b23fc511f2a8efa40db55cfba123824e02a"
+  integrity sha512-eRNM5isOvr6aEFAGi1CqAkmLkYxW2NJ5ThhbD+6IJXYKM1mo7Gtxx4mQIveHz/5K3p/SVnlW9k17ETn+QAu8IQ==
 
 util-deprecate@^1.0.1:
   version "1.0.2"

@@ -25,6 +25,7 @@
         "http-proxy-middleware": "^3.0.5",
         "js-yaml": "^4.1.0",
         "nacos": "^2.6.0",
+        "nest-knife4j": "1.0.1",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.1"
     },
