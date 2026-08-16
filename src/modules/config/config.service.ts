@@ -31,7 +31,7 @@ export class ServiceConfigService {
     }
 
     getServerPort(): number {
-        return getPort(process.env.PORT ?? this.configService.get('server.port'), 8080, 'server.port')
+        return getPort(process.env.PORT ?? this.configService.get('server.port'), 3999, 'server.port')
     }
 
     getProxyTimeout(): number {
