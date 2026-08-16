@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+node_modules
+dist
+build
+coverage
+docker
+deploy
+*.log
+**/.env
+**/.env.*
+README.md

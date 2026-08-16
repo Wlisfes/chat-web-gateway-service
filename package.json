@@ -1,0 +1,43 @@
+{
+    "name": "chat-web-gateway-service",
+    "version": "0.0.1",
+    "description": "Chat Web 微服务统一 API 网关",
+    "author": "",
+    "private": true,
+    "license": "UNLICENSED",
+    "scripts": {
+        "install": "yarn install --ignore-scripts",
+        "build": "nest build",
+        "start": "nest start",
+        "dev": "nest start --watch",
+        "debug": "nest start --debug --watch",
+        "start:prod": "node dist/main"
+    },
+    "dependencies": {
+        "@nestjs/common": "^11.0.1",
+        "@nestjs/config": "^4.0.0",
+        "@nestjs/core": "^11.0.1",
+        "@nestjs/platform-express": "^11.0.1",
+        "@nestjs/swagger": "11.4.6",
+        "express": "^5.2.1",
+        "express-rate-limit": "^8.0.1",
+        "helmet": "^8.1.0",
+        "http-proxy-middleware": "^3.0.5",
+        "js-yaml": "^4.1.0",
+        "nacos": "^2.6.0",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.1"
+    },
+    "devDependencies": {
+        "@nestjs/cli": "^11.0.0",
+        "@nestjs/schematics": "^11.0.0",
+        "@types/express": "^5.0.0",
+        "@types/node": "^24.0.0",
+        "prettier": "^3.4.2",
+        "source-map-support": "^0.5.21",
+        "ts-loader": "^9.5.2",
+        "ts-node": "^10.9.2",
+        "tsconfig-paths": "^4.2.0",
+        "typescript": "^5.7.3"
+    }
+}
