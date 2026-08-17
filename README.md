@@ -50,7 +50,7 @@ ACCOUNT_SERVICE_URL=http://127.0.0.1:3000
 启用 Nacos 时使用以下配置：
 
 ```dotenv
-NACOS_NAMESPACE=e60f5b2a-ba9d-475a-91ee-fa252e0456c1
+NACOS_NAMESPACE=0210cecf-114e-43e6-a260-1d4b263fb189
 NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
 NACOS_CONFIG_GROUP=DEFAULT_GROUP
 ```
@@ -116,10 +116,19 @@ nacos:
 
 ## 部署
 
+部署基线、故障恢复和跨机器操作记录：
+
+- [部署变更记录](deploy/CHANGELOG.md)
+- [故障恢复手册](deploy/RUNBOOK.md)
+
+凡是修改 Docker、Actions、Nacos、路由、端口、环境变量、健康检查或 Runner，必须在同一次提交中更新部署变更记录。
+
 1. 首次部署会自动从 `deploy/.env.example` 创建 `/opt/chat-web-gateway-service/.env`；需要覆盖实例参数时直接修改服务器文件。
 2. 确认 `chat-web-infrastructure` 外部网络已经存在，Nacos 和账号服务位于该网络。
 3. GitHub 仓库配置 `production-home`、`production-company` Environment，以及对应自托管 Runner。
 4. 合并到 `main` 后，流水线构建并推送 GHCR 镜像，然后滚动部署并执行健康检查。
+
+Self-hosted Runner 默认只属于注册它的仓库。即使同一台机器已经安装了账号服务 Runner，网关仓库仍需使用独立目录和网关仓库生成的 Token 再安装一个 Runner；Company 标签统一为 `chat-server-company`。
 
 开发分支使用 `developer`，`main` 只接受合并后的稳定代码。所有微服务容器归属 `chat-web-service` Compose 项目；独立部署脚本不会清理同组的其他服务。
 
