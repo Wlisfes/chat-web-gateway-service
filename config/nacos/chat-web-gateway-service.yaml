@@ -14,12 +14,12 @@ gateway:
         credentials: false
     routes:
         - id: account
-          prefix: /api/account
+          prefix: /api
           serviceName: chat-web-account-service
           fallbackUrl: http://chat-web-account-service:3000
           enabled: true
         - id: finance
-          prefix: /api/windows/finance
+          prefix: /api/finance
           serviceName: chat-web-finance-service
           fallbackUrl: http://chat-web-finance-service:3010
           enabled: true

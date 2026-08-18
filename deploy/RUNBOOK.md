@@ -7,8 +7,8 @@
 | 容器                 | `chat-web-gateway-service`                         |
 | 访问地址             | `http://127.0.0.1:3999`                            |
 | 健康检查             | `http://127.0.0.1:3999/health`                     |
-| Account 转发检查     | `http://127.0.0.1:3999/api/account/health`         |
-| Finance 转发检查     | `http://127.0.0.1:3999/api/windows/finance/health` |
+| Account 转发检查     | `http://127.0.0.1:3999/api/health`                 |
+| Finance 转发检查     | `http://127.0.0.1:3999/api/finance/health`         |
 | 部署目录             | `/opt/chat-web-gateway-service`                    |
 | Docker 网络          | `chat-web-infrastructure`                          |
 | Nacos Data ID        | `chat-web-gateway-service.yaml`                    |
@@ -28,8 +28,8 @@ Namespace ID 是每台 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 docker inspect chat-web-gateway-service --format "{{.Config.Image}} {{.State.Status}} {{.State.Health.Status}}"
 docker logs --tail 200 chat-web-gateway-service
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/account/health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/windows/finance/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/finance/health
 ```
 
 `/health` 中 `source` 为 `fallback` 表示 Account 尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。

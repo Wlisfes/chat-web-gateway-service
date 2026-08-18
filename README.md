@@ -5,8 +5,8 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 ## 第一版能力
 
 - 从 Nacos `chat-web-gateway-service.yaml` 动态读取全部服务路由和跨域白名单。
-- `/api/account/**` 转发到 `chat-web-account-service`，转发时移除 `/api/account` 前缀。
-- `/api/windows/finance/**` 转发到 `chat-web-finance-service`，转发时移除 `/api/windows/finance` 前缀。
+- `/api/**` 默认转发到 `chat-web-account-service`，转发时移除 `/api` 前缀。
+- `/api/finance/**` 优先转发到 `chat-web-finance-service`，转发时移除 `/api/finance` 前缀。
 - 使用 Nacos 发现健康服务实例，并在多个实例之间轮询。
 - Nacos 不可用或没有健康实例时，使用各路由对应的 `*_SERVICE_URL` 后备地址。
 - 网关自身可注册到 Nacos，并在退出时注销临时实例。
@@ -19,10 +19,10 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 
 | 客户端地址                        | 下游服务地址  |
 | --------------------------------- | ------------- |
-| `GET /api/account/health`         | `GET /health` |
-| `/api/account/users/**`           | `/users/**`   |
-| `GET /api/windows/finance/health` | `GET /health` |
-| `/api/windows/finance/brand/**`   | `/brand/**`   |
+| `GET /api/health`                 | `GET /health` |
+| `/api/users/**`                   | `/users/**`   |
+| `GET /api/finance/health`         | `GET /health` |
+| `/api/finance/brand/**`           | `/brand/**`   |
 
 账号服务仍然负责业务鉴权、字段校验和数据访问。网关后续可以增加 JWT 的通用身份解析，但下游服务不能因此取消权限校验。
 
@@ -40,8 +40,8 @@ yarn dev
 - 网关信息：`http://127.0.0.1:3999/gateway`
 - 健康检查：`http://127.0.0.1:3999/health`
 - 网关 Swagger：`http://127.0.0.1:3999/api/swagger`
-- 账号服务：`http://127.0.0.1:3999/api/account/**`
-- 财务服务：`http://127.0.0.1:3999/api/windows/finance/**`
+- 账号服务：`http://127.0.0.1:3999/api/**`
+- 财务服务：`http://127.0.0.1:3999/api/finance/**`
 
 如果本地没有 Nacos，可以关闭配置中心和服务发现：
 
@@ -87,12 +87,12 @@ gateway:
         credentials: false
     routes:
         - id: account
-          prefix: /api/account
+          prefix: /api
           serviceName: chat-web-account-service
           fallbackUrl: http://chat-web-account-service:3000
           enabled: true
         - id: finance
-          prefix: /api/windows/finance
+          prefix: /api/finance
           serviceName: chat-web-finance-service
           fallbackUrl: http://chat-web-finance-service:3010
           enabled: true

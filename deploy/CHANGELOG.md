@@ -1,5 +1,27 @@
 # 部署变更记录
 
+## 2026-08-18：移除 Account 与 Windows 公网前缀
+
+- 影响范围：Company、Home；Gateway、Manager、Account 与 Finance 的公网 API 路径。
+- 关联版本：本次 Gateway 与 Manager 联动发布的完整 Git SHA。
+- 变更内容：Account 公网路由由 `/api/account/**` 改为 `/api/**`，Finance 由 `/api/windows/finance/**` 改为 `/api/finance/**`；Gateway 允许 `/api` 作为根路由前缀，并继续按前缀长度优先匹配 Finance，避免被 Account 根路由截获。
+- 机器侧操作：先发布支持 `/api` 根前缀的 Gateway，再将两台机器 Nacos `chat-web-gateway-service.yaml` 切换为新路由，最后发布使用新路径的 Manager；禁止在旧 Gateway 上提前发布 `/api` 根路由。
+
+### 验证
+
+```bash
+curl -fsS http://127.0.0.1:3999/api/health
+curl -fsS http://127.0.0.1:3999/api/finance/health
+curl -sS http://127.0.0.1:3999/api/auth/me
+```
+
+预期两个健康接口返回业务 `code=200`，未登录 Account 接口返回业务 `code=401`，旧 `/api/account/**` 与 `/api/windows/finance/**` 不再作为正式入口。
+
+### 回滚
+
+- 先把 Nacos 路由恢复为 `/api/account` 与 `/api/windows/finance`，确认旧路径恢复后再回滚 Gateway 和 Manager 镜像。
+- 两个后端服务、数据库、服务名及容器端口均未变化，无需回滚数据。
+
 本文件只记录会影响服务器构建、部署、启动或运行的变更，不记录密码、Token、私钥和真实 `.env`。
 
 新增记录必须包含：影响范围、关联版本、变更内容、机器侧操作、验证方式和回滚方式。最新记录放在最前面。

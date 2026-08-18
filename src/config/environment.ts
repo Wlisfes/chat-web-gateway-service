@@ -133,14 +133,14 @@ export function getFallbackGatewayRoutes(environment: Record<string, unknown>): 
     return [
         {
             id: 'account',
-            prefix: '/api/account',
+            prefix: '/api',
             serviceName: readString(environment.ACCOUNT_SERVICE_NAME, 'chat-web-account-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:3000'), 'ACCOUNT_SERVICE_URL'),
             enabled: true
         },
         {
             id: 'finance',
-            prefix: '/api/windows/finance',
+            prefix: '/api/finance',
             serviceName: readString(environment.FINANCE_SERVICE_NAME, 'chat-web-finance-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:3010'), 'FINANCE_SERVICE_URL'),
             enabled: true
@@ -280,8 +280,8 @@ function parseNonNegativeInteger(value: unknown, fallback: number, name: string)
 }
 
 function normalizeRoutePrefix(value: string, name: string): string {
-    if (!/^\/api\/[a-z0-9][a-z0-9/-]*$/.test(value) || value.endsWith('/')) {
-        throw new Error(`${name} 必须是以 /api/ 开头且不以 / 结尾的小写路径`)
+    if (!/^\/api(?:\/[a-z0-9][a-z0-9/-]*)?$/.test(value) || value.endsWith('/')) {
+        throw new Error(`${name} 必须是 /api 或以 /api/ 开头且不以 / 结尾的小写路径`)
     }
     return value
 }
