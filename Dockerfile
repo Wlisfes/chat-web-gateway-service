@@ -15,6 +15,10 @@ RUN --mount=type=cache,id=gateway-yarn-cache,target=/usr/local/share/.cache/yarn
       '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' \
       'always-auth=true' > "$NPM_CONFIG_USERCONFIG"; \
     trap 'rm -f "$NPM_CONFIG_USERCONFIG"' EXIT; \
+    schema_version="$(node -p "require('./package.json').dependencies['@wlisfes/chat-web-base-schema']")"; \
+    schema_tarball="$(npm view "@wlisfes/chat-web-base-schema@${schema_version}" dist.tarball --silent)"; \
+    test -n "$schema_tarball"; \
+    sed -i "s|https://npm.pkg.github.com/@wlisfes/chat-web-base-schema/-/chat-web-base-schema-${schema_version}.tgz|${schema_tarball}|g" yarn.lock; \
     yarn install --frozen-lockfile --non-interactive --ignore-scripts
 
 FROM dependencies AS builder

@@ -9,7 +9,7 @@
 - 影响范围：Company、Home 网关及管理端 API 调用。
 - 关联版本：网关本次共享响应接入提交；`@wlisfes/chat-web-base-schema@1.0.6`。
 - 容器与端口：服务和健康检查端口仍为 `3999`；Docker 构建新增只读使用仓库 `GITHUB_TOKEN` 的 BuildKit secret。
-- 变更内容：网关接入共享 `HttpResponseModule`；限流、网关初始化和下游不可用响应统一为 HTTP 200，并通过 `{ data, code, message, timestamp }` 的数字 `code` 表达业务结果；Token 只存在于构建临时配置，不写入镜像层。
+- 变更内容：网关接入共享 `HttpResponseModule`；限流、网关初始化和下游不可用响应统一为 HTTP 200，并通过 `{ data, code, message, timestamp }` 的数字 `code` 表达业务结果；构建时在临时鉴权环境查询固定版本的 GitHub Packages tarball 地址并继续冻结锁文件安装，Token 和下载地址不写入仓库或最终镜像层。
 - 机器侧操作：无需修改服务器 `.env`、Nacos 或端口；由 Actions 重新构建并滚动部署网关镜像。
 
 ### 验证
