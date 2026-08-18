@@ -4,6 +4,24 @@
 
 新增记录必须包含：影响范围、关联版本、变更内容、机器侧操作、验证方式和回滚方式。最新记录放在最前面。
 
+## 2026-08-18：接入 Finance 服务路由与共享响应升级
+
+- 影响范围：Company、Home 网关和财务中心管理页面。
+- 关联版本：`chat-web-finance-service` 首个部署版本；`@wlisfes/chat-web-base-schema@1.0.8`；网关本次路由提交。
+- 变更内容：Nacos 路由示例和无 Nacos fallback 同时新增 `/api/windows/finance`，转发到 `chat-web-finance-service:3010` 并剥离公开前缀；新增 `FINANCE_SERVICE_URL` 环境覆盖。共享响应升级到 1.0.8，供协议型接口正确保留原生 HTTP 状态。
+- 机器侧操作：两台 Nacos 的 `chat-web-gateway-service.yaml` 增加 Finance 路由；确认 Finance 与 Gateway 均加入 `chat-web-infrastructure`。
+
+### 验证
+
+```bash
+curl -fsS http://127.0.0.1:3999/api/windows/finance/health
+curl -sS -X POST http://127.0.0.1:3999/api/windows/finance/brand/column -H 'Content-Type: application/json' -d '{"page":1,"size":10}'
+```
+
+### 回滚
+
+- 从 Nacos 移除 Finance 路由并恢复上一条网关镜像；Finance 数据库和容器不随网关回滚删除。
+
 ## 2026-08-18：统一响应模块与 GitHub Packages 构建认证
 
 - 影响范围：Company、Home 网关及管理端 API 调用。

@@ -2,20 +2,21 @@
 
 ## 当前基线
 
-| 项目 | 值 |
-| --- | --- |
-| 容器 | `chat-web-gateway-service` |
-| 访问地址 | `http://127.0.0.1:3999` |
-| 健康检查 | `http://127.0.0.1:3999/health` |
-| Account 转发检查 | `http://127.0.0.1:3999/api/account/health` |
-| 部署目录 | `/opt/chat-web-gateway-service` |
-| Docker 网络 | `chat-web-infrastructure` |
-| Nacos Data ID | `chat-web-gateway-service.yaml` |
-| Nacos Group | `DEFAULT_GROUP` |
-| Nacos Namespace 名称 | `chat-web-service` |
-| Nacos 服务名 | `chat-web-gateway-service` |
-| Company Runner | `chat-server-company-gateway` |
-| Home Runner 标签 | `chat-server-home` |
+| 项目                 | 值                                                 |
+| -------------------- | -------------------------------------------------- |
+| 容器                 | `chat-web-gateway-service`                         |
+| 访问地址             | `http://127.0.0.1:3999`                            |
+| 健康检查             | `http://127.0.0.1:3999/health`                     |
+| Account 转发检查     | `http://127.0.0.1:3999/api/account/health`         |
+| Finance 转发检查     | `http://127.0.0.1:3999/api/windows/finance/health` |
+| 部署目录             | `/opt/chat-web-gateway-service`                    |
+| Docker 网络          | `chat-web-infrastructure`                          |
+| Nacos Data ID        | `chat-web-gateway-service.yaml`                    |
+| Nacos Group          | `DEFAULT_GROUP`                                    |
+| Nacos Namespace 名称 | `chat-web-service`                                 |
+| Nacos 服务名         | `chat-web-gateway-service`                         |
+| Company Runner       | `chat-server-company-gateway`                      |
+| Home Runner 标签     | `chat-server-home`                                 |
 
 Namespace ID 是每台 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据另一台机器猜测。
 
@@ -28,6 +29,7 @@ docker inspect chat-web-gateway-service --format "{{.Config.Image}} {{.State.Sta
 docker logs --tail 200 chat-web-gateway-service
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/account/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/windows/finance/health
 ```
 
 `/health` 中 `source` 为 `fallback` 表示 Account 尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。
@@ -39,7 +41,7 @@ docker network inspect chat-web-infrastructure
 docker logs --tail 100 chat-web-nacos
 ```
 
-Gateway、Account、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，路由的后备地址为 `http://chat-web-account-service:3000`。
+Gateway、Account、Finance、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，Account 和 Finance 后备地址分别为 `http://chat-web-account-service:3000`、`http://chat-web-finance-service:3010`。
 
 ### 3. 检查 Company Runner 与 WSL 保活
 
@@ -61,13 +63,13 @@ Actions 应满足：Build 成功、Home 与 Company 各自成功。容器镜像�
 
 ## 常见故障
 
-| 现象 | 原因 | 处理 |
-| --- | --- | --- |
-| Company 部署一直 Queued | Gateway 仓库 Runner 离线 | 启动 WSL 保活任务并重启 Gateway Runner |
-| 3999 拒绝连接 | Gateway 未部署或未通过健康检查 | 查看容器状态和日志，核对 `/opt` 下 `.env` |
-| Nacos 配置不存在 | Namespace ID、Data ID 或 Group 不一致 | 核对本机 Namespace 和 `chat-web-gateway-service.yaml` |
-| Account 转发 502 | Account 容器不可达且 Nacos 无健康实例 | 检查 Account 健康和 Docker 网络 |
-| `healthyInstances: 0` | Account 尚未注册到 Nacos | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
+| 现象                    | 原因                                  | 处理                                                       |
+| ----------------------- | ------------------------------------- | ---------------------------------------------------------- |
+| Company 部署一直 Queued | Gateway 仓库 Runner 离线              | 启动 WSL 保活任务并重启 Gateway Runner                     |
+| 3999 拒绝连接           | Gateway 未部署或未通过健康检查        | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
+| Nacos 配置不存在        | Namespace ID、Data ID 或 Group 不一致 | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`      |
+| Account 转发 502        | Account 容器不可达且 Nacos 无健康实例 | 检查 Account 健康和 Docker 网络                            |
+| `healthyInstances: 0`   | Account 尚未注册到 Nacos              | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
 
 ## 恢复顺序
 

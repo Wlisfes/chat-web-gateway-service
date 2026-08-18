@@ -12,6 +12,8 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
 
     const accountServiceUrl = readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:3000')
     normalizeHttpUrl(accountServiceUrl, 'ACCOUNT_SERVICE_URL')
+    const financeServiceUrl = readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:3010')
+    normalizeHttpUrl(financeServiceUrl, 'FINANCE_SERVICE_URL')
 
     return environment
 }
@@ -134,6 +136,13 @@ export function getFallbackGatewayRoutes(environment: Record<string, unknown>): 
             prefix: '/api/account',
             serviceName: readString(environment.ACCOUNT_SERVICE_NAME, 'chat-web-account-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:3000'), 'ACCOUNT_SERVICE_URL'),
+            enabled: true
+        },
+        {
+            id: 'finance',
+            prefix: '/api/windows/finance',
+            serviceName: readString(environment.FINANCE_SERVICE_NAME, 'chat-web-finance-service'),
+            fallbackUrl: normalizeHttpUrl(readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:3010'), 'FINANCE_SERVICE_URL'),
             enabled: true
         }
     ]
