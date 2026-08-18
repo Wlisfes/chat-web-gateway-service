@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
@@ -98,13 +99,8 @@ async function bootstrap(): Promise<void> {
             standardHeaders: 'draft-7',
             legacyHeaders: false,
             skip: request => request.path.startsWith('/health'),
-            handler: (request, response) => {
-                response.status(429).json({
-                    statusCode: 429,
-                    code: 'RATE_LIMIT_EXCEEDED',
-                    message: '请求过于频繁，请稍后重试',
-                    requestId: request.headers['x-request-id']
-                })
+            handler: (_request, response) => {
+                response.status(200).json(createApiResponse(null, { code: 429, message: '请求过于频繁，请稍后重试' }))
             }
         })
     }

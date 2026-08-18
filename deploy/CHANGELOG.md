@@ -4,6 +4,26 @@
 
 新增记录必须包含：影响范围、关联版本、变更内容、机器侧操作、验证方式和回滚方式。最新记录放在最前面。
 
+## 2026-08-18：统一响应模块与 GitHub Packages 构建认证
+
+- 影响范围：Company、Home 网关及管理端 API 调用。
+- 关联版本：网关本次共享响应接入提交；`@wlisfes/chat-web-base-schema@1.0.6`。
+- 容器与端口：服务和健康检查端口仍为 `3999`；Docker 构建新增只读使用仓库 `GITHUB_TOKEN` 的 BuildKit secret。
+- 变更内容：网关接入共享 `HttpResponseModule`；限流、网关初始化和下游不可用响应统一为 HTTP 200，并通过 `{ data, code, message, timestamp }` 的数字 `code` 表达业务结果；Token 只存在于构建临时配置，不写入镜像层。
+- 机器侧操作：无需修改服务器 `.env`、Nacos 或端口；由 Actions 重新构建并滚动部署网关镜像。
+
+### 验证
+
+```bash
+yarn build
+docker build --secret id=github_token,env=NODE_AUTH_TOKEN -t chat-web-gateway-service:response-test .
+curl -fsS http://127.0.0.1:3999/health/live
+```
+
+### 回滚
+
+- 回滚到上一版网关镜像；无需回滚数据库、Nacos、端口或服务器环境变量。
+
 ## 2026-08-17：Gateway 双机器部署与 Company Runner 安装
 
 - 影响范围：Company、Home。

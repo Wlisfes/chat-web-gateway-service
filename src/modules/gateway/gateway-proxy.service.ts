@@ -1,6 +1,7 @@
 import type { ClientRequest, Server } from 'node:http'
 import type { Socket } from 'node:net'
 import { Injectable, Logger } from '@nestjs/common'
+import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import type { Express, Request, RequestHandler, Response } from 'express'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import type { RequestHandler as ProxyRequestHandler } from 'http-proxy-middleware'
@@ -35,12 +36,7 @@ export class GatewayProxyService {
 
         application.use('/api', ((request: Request, response: Response, next) => {
             if (!this.proxy) {
-                response.status(503).json({
-                    statusCode: 503,
-                    code: 'GATEWAY_INITIALIZING',
-                    message: '网关配置正在初始化',
-                    requestId: request.headers['x-request-id']
-                })
+                response.status(200).json(createApiResponse(null, { code: 503, message: '网关配置正在初始化' }))
                 return
             }
             void this.proxy(request, response, next)
@@ -101,14 +97,9 @@ export class GatewayProxyService {
                             response.end()
                             return
                         }
-                        response.writeHead(502, { 'content-type': 'application/json; charset=utf-8' })
+                        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
                         response.end(
-                            JSON.stringify({
-                                statusCode: 502,
-                                code: 'BAD_GATEWAY',
-                                message: `服务 ${route?.id ?? 'unknown'} 暂时不可用`,
-                                requestId: request.headers['x-request-id']
-                            })
+                            JSON.stringify(createApiResponse(null, { code: 502, message: `服务 ${route?.id ?? 'unknown'} 暂时不可用` }))
                         )
                         return
                     }
