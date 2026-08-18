@@ -6,7 +6,7 @@ COMPOSE_FILE=${2:-compose.yml}
 SERVICE=gateway-service
 CONTAINER=chat-web-gateway-service
 HEALTH_TIMEOUT=${HEALTH_TIMEOUT:-180}
-PULL_ATTEMPTS=${PULL_ATTEMPTS:-3}
+PULL_ATTEMPTS=${PULL_ATTEMPTS:-8}
 deployment_started=0
 
 if [ ! -f "$COMPOSE_FILE" ]; then

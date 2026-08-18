@@ -5,6 +5,7 @@
 - 影响范围：Company、Home；Gateway、Manager、Account 与 Finance 的公网 API 路径。
 - 关联版本：本次 Gateway 与 Manager 联动发布的完整 Git SHA。
 - 变更内容：Account 公网路由由 `/api/account/**` 改为 `/api/**`，Finance 由 `/api/windows/finance/**` 改为 `/api/finance/**`；Gateway 允许 `/api` 作为根路由前缀，并继续按前缀长度优先匹配 Finance，避免被 Account 根路由截获。
+- 部署可靠性：两台 Runner 访问 GHCR 多次出现 EOF，镜像拉取默认重试由 3 次提高到 8 次，仍保持递增退避且失败后不切换容器。
 - 机器侧操作：先发布支持 `/api` 根前缀的 Gateway，再将两台机器 Nacos `chat-web-gateway-service.yaml` 切换为新路由，最后发布使用新路径的 Manager；禁止在旧 Gateway 上提前发布 `/api` 根路由。
 
 ### 验证
