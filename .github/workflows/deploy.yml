@@ -110,11 +110,24 @@ jobs:
                   set -eu
                   install -m 0644 deploy/compose.yml "$DEPLOY_PATH/compose.yml"
                   install -m 0755 deploy/deploy.sh "$DEPLOY_PATH/deploy.sh"
+                  install -m 0644 deploy/migrate-nacos-routes.cjs "$DEPLOY_PATH/migrate-nacos-routes.cjs"
                   install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env.example"
                   if [ ! -f "$DEPLOY_PATH/.env" ]; then
                     install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env"
                     echo "Initialized $DEPLOY_PATH/.env from deploy/.env.example"
                   fi
+
+            - name: Migrate Nacos route prefixes
+              shell: bash
+              run: |
+                  set -eu
+                  network=$(sed -n 's/^DOCKER_NETWORK=//p' "$DEPLOY_PATH/.env" | tail -n 1)
+                  network=${network:-chat-web-infrastructure}
+                  docker run --rm \
+                    --network "$network" \
+                    --env-file "$DEPLOY_PATH/.env" \
+                    --env RUN_NACOS_ROUTE_MIGRATION=1 \
+                    node:22-alpine node - < "$DEPLOY_PATH/migrate-nacos-routes.cjs"
 
             - name: Pull and deploy image
               shell: bash
@@ -125,6 +138,20 @@ jobs:
                   printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username '${{ github.actor }}' --password-stdin
                   cd "$DEPLOY_PATH"
                   ./deploy.sh "$IMAGE" compose.yml
+
+            - name: Verify Finance route
+              shell: bash
+              run: |
+                  set -eu
+                  docker exec chat-web-gateway-service node -e '
+                    require("http").get("http://127.0.0.1:3999/api/finance/health", response => {
+                      let body = ""
+                      response.setEncoding("utf8")
+                      response.on("data", chunk => { body += chunk })
+                      response.on("end", () => {
+                        try { process.exit(JSON.parse(body).code === 200 ? 0 : 1) } catch { process.exit(1) }
+                      })
+                    }).on("error", () => process.exit(1))'
 
             - name: Log out from GitHub Container Registry
               if: always()
