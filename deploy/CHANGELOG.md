@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-19：共享基础包 1.1.2 与网关数据边界
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.2`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：锁定共享基础包 1.1.2，并在仓库规则中明确 Gateway 不连接业务数据库、不读取业务 Redis；现有 Nacos 路由、端口 3999、响应封装和服务发现行为不变。
+- 机器侧操作：无需修改 `.env`、Nacos、数据库、Redis、端口、Runner、部署目录或外部网络；合并后由双机矩阵部署同一完整 SHA。
+- 验证命令：`yarn build`；部署后执行 `docker inspect chat-web-gateway-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3999/health/live`、`curl -fsS http://127.0.0.1:3999/api/health` 和 `curl -fsS http://127.0.0.1:3999/api/finance/health`。
+- 回滚方法：将两台机器恢复到上一条健康 Gateway SHA；无需回滚 Nacos、数据库、Redis 或其他服务。
+
 ## 2026-08-19：共享基础包 1.1.1 联动升级
 
 - 影响机器：Company、Home。
