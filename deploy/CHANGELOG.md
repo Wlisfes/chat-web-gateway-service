@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-19：共享基础包 1.1.1 联动升级
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.1`；网关本次完整 Git SHA 镜像。
+- 变更内容：将共享基础包升级到包含 Redis、Nacos、Auth 和 MySQL 隔离运行时子路径的 1.1.1；网关继续只加载共享响应子路径，本地服务发现、动态路由和端口 3999 行为不变。锁文件固定到已发布版本，Docker 仍通过临时 BuildKit Secret 下载私有包。
+- 机器侧操作：无需修改 `.env`、Nacos 路由、端口、Runner、部署目录或外部网络；合并后由现有双机矩阵部署同一完整 SHA。
+- 验证命令：`yarn build`；部署后分别执行 `docker inspect chat-web-gateway-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3999/health/live`、`curl -fsS http://127.0.0.1:3999/api/health` 和 `curl -fsS http://127.0.0.1:3999/api/finance/health`。
+- 回滚方法：将两台机器恢复到上一条健康网关 SHA；无需回滚 Nacos、数据库或其他服务容器。
+
 ## 2026-08-18：移除 Account 与 Windows 公网前缀
 
 - 影响范围：Company、Home；Gateway、Manager、Account 与 Finance 的公网 API 路径。
