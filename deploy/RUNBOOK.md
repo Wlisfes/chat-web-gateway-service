@@ -22,6 +22,8 @@ Namespace ID 是每台 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
+部署会把遗留 `/api/windows/finance`、`/api/account` 幂等迁移为 `/api/finance`、`/api`，并验证 `/api/finance/health` 响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制另一台完整 Nacos 配置。
+
 ## 五分钟排障
 
 ### 1. 检查 Gateway 和转发链路
