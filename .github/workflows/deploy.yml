@@ -121,7 +121,7 @@ jobs:
               shell: bash
               run: |
                   set -eu
-                  network=$(sed -n 's/^DOCKER_NETWORK=//p' "$DEPLOY_PATH/.env" | tail -n 1)
+                  network=$(sed -n 's/^DOCKER_NETWORK=//p' "$DEPLOY_PATH/.env" | tail -n 1 | tr -d '\r')
                   network=${network:-chat-web-infrastructure}
                   docker run --rm \
                     --network "$network" \

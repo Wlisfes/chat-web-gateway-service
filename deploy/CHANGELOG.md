@@ -5,7 +5,7 @@
 - 影响机器：Company、Home。
 - 关联版本：`@wlisfes/chat-web-base-schema@1.1.2`；Gateway 本次完整 Git SHA 镜像。
 - 变更内容：锁定共享基础包 1.1.2，并在仓库规则中明确 Gateway 不连接业务数据库、不读取业务 Redis。部署幂等迁移历史 `/api/windows/finance` 到 `/api/finance`、`/api/account` 到 `/api`，随后从 Gateway 容器验证 Finance 新路由业务 `code=200`；端口 3999、响应封装和服务发现不变。
-- 机器侧操作：Company、Home 的部署会原地更新各自 Nacos Gateway Data ID 中的旧路由前缀，不复制另一台配置；无需修改 `.env`、数据库、Redis、端口、Runner、部署目录或外部网络。合并后由双机矩阵部署同一完整 SHA。
+- 机器侧操作：Company、Home 的部署会原地更新各自 Nacos Gateway Data ID 中的旧路由前缀，不复制另一台配置；读取 Company 历史 CRLF `.env` 时会移除行尾回车再选择 Docker 网络。无需修改 `.env`、数据库、Redis、端口、Runner、部署目录或外部网络。合并后由双机矩阵部署同一完整 SHA。
 - 验证命令：`yarn build`；部署后执行 `docker inspect chat-web-gateway-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3999/health/live`、`curl -fsS http://127.0.0.1:3999/api/health` 和 `curl -fsS http://127.0.0.1:3999/api/finance/health`。
 - 回滚方法：将两台机器恢复到上一条健康 Gateway SHA；无需回滚 Nacos、数据库、Redis 或其他服务。
 
