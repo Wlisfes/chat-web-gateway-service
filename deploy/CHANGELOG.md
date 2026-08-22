@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：同步共享鉴权运行时版本
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.2.2`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：升级共享运行时依赖以保持微服务版本一致；Gateway 继续只负责路由与协议边界，不引入 Account 会话、JWT 密钥或业务数据库访问，Bearer Token 原样转发给业务服务统一校验。
+- 机器侧操作：无需修改 `.env`、Nacos 路由、数据库、Redis、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn build` 和 Compose 配置校验；部署后验证 Gateway、Account、Finance、CRM 健康转发。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA 镜像；无需回滚 Nacos、数据库或 Redis。
+
 ## 2026-08-23：新增 CRM 服务动态路由
 
 - 影响机器：Company、Home；需与 CRM 首次发布处于同一部署窗口。
