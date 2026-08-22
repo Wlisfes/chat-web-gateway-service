@@ -30,11 +30,14 @@ Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Fi
 
 ```powershell
 docker inspect chat-web-gateway-service --format "{{.Config.Image}} {{.State.Status}} {{.State.Health.Status}}"
+docker inspect chat-web-gateway-service --format "{{json .HostConfig.LogConfig}}"
 docker logs --tail 200 chat-web-gateway-service
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/account/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/finance/health
 ```
+
+日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/account/consumer/**` 转发。
 
 `/health` 中 `source` 为 `fallback` 表示 Account 尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。
 

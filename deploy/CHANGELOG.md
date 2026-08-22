@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-22：共享请求日志与 Docker 日志轮转
+
+- 影响机器：Company、Home；需与 Account、Finance、Manager 同一发布窗口部署。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.6`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：在现有共享请求上下文后接入结构化请求日志，记录服务、`logId`、方法、URL、状态码、来源与耗时，并脱敏敏感入参；Docker `json-file` 轮转从保留 5 个文件调整为 30 个。路由仍只有 `/api/account`、`/api/finance` 等服务名称前缀，不新增 Consumer 服务。
+- 机器侧操作：无需修改 `.env`、Nacos 路由、数据库、Redis、端口、Runner、部署目录或网络；先部署业务服务，再部署 Gateway。
+- 验证命令：执行 `yarn build` 和 `docker compose -f deploy/compose.yml config --quiet`；部署后验证 Gateway、Account、Finance 健康转发、`/api/account/consumer/**` 及 `docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}'`。
+- 回滚方法：同时回滚 Gateway、Account、Finance、Manager 到上一组兼容镜像；Nacos 路由无需回滚。
+
 ## 2026-08-22：恢复服务名称前缀并共享请求上下文
 
 - 影响机器：Company、Home；需与 Account、Finance、Manager 同一发布窗口部署。

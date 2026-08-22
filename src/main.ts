@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
+import { createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
@@ -45,6 +46,7 @@ async function bootstrap(): Promise<void> {
 
     app.enableCors((_request, callback) => callback(null, serviceConfig.getCorsOptions()))
     app.use(requestContextMiddleware)
+    app.use(createRequestLoggingMiddleware({ serviceName: 'chat-web-gateway-service' }))
     app.use(
         helmet({
             // Swagger UI 使用内联脚本和样式；CSP 应由最外层反向代理按实际域名配置。
