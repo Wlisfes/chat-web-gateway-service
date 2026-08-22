@@ -145,11 +145,23 @@ jobs:
                   set -eu
                   docker exec chat-web-gateway-service node -e '
                     const paths = ["/api/account/health", "/api/finance/health", "/api/crm/health"]
-                    Promise.all(paths.map(async path => {
-                      const response = await fetch(`http://127.0.0.1:3999${path}`)
-                      const body = await response.json()
-                      if (body.code !== 200) throw new Error(`${path} returned business code ${body.code}`)
-                    })).catch(error => { console.error(error.message); process.exit(1) })'
+                    const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
+                    async function waitForRoute(path) {
+                      let lastError
+                      for (let attempt = 1; attempt <= 120; attempt += 1) {
+                        try {
+                          const response = await fetch(`http://127.0.0.1:3999${path}`, { signal: AbortSignal.timeout(3000) })
+                          const body = await response.json()
+                          if (body.code === 200) return
+                          lastError = new Error(`${path} returned business code ${body.code}`)
+                        } catch (error) {
+                          lastError = error
+                        }
+                        await delay(5000)
+                      }
+                      throw lastError || new Error(`${path} did not become ready`)
+                    }
+                    Promise.all(paths.map(waitForRoute)).catch(error => { console.error(error.message); process.exit(1) })'
 
             - name: Log out from GitHub Container Registry
               if: always()
