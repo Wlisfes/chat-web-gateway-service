@@ -22,12 +22,15 @@ function configParameters() {
 function migrateRoutePrefixes(content) {
     const migrated = content
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api\/windows\/finance['"]?[ \t]*$/gm, '$1/api/finance')
-        .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api\/account['"]?[ \t]*$/gm, '$1/api')
+        .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api['"]?[ \t]*$/gm, '$1/api/account')
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/finance['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Finance prefix /api/finance')
     }
-    if (!/^[ \t]*prefix:[ \t]*['"]?\/api['"]?[ \t]*$/m.test(migrated)) {
-        throw new Error('Gateway Nacos config must contain the Account prefix /api')
+    if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/account['"]?[ \t]*$/m.test(migrated)) {
+        throw new Error('Gateway Nacos config must contain the Account prefix /api/account')
+    }
+    if (/^[ \t]*prefix:[ \t]*['"]?\/api['"]?[ \t]*$/m.test(migrated)) {
+        throw new Error('Gateway Nacos config must not contain the root prefix /api')
     }
     return migrated
 }

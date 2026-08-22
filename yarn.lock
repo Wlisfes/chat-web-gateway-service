@@ -678,10 +678,10 @@
     "@webassemblyjs/ast" "1.14.1"
     "@xtuc/long" "4.2.2"
 
-"@wlisfes/chat-web-base-schema@1.1.2":
-  version "1.1.2"
-  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.1.2/cfd382d96235d25b94a20fccd8bc26ce55ba3302#cfd382d96235d25b94a20fccd8bc26ce55ba3302"
-  integrity sha512-52+l649sG0UP8gvxLxP2ouUjkBsrc6NCm7E+ERv8uygTV4UAzudcZd98nxyf7+XekwWnfZZnQnj94+EGrOy5jg==
+"@wlisfes/chat-web-base-schema@1.1.4":
+  version "1.1.4"
+  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.1.4/60273932bab394364227966e32fb99c6a31e8d7f#60273932bab394364227966e32fb99c6a31e8d7f"
+  integrity sha512-8vygxFiDh5swRGUNNqz2BGmRDhQgJuTCvJBrgXrACdbvcjmMI+hbXyPor2ZuRhl6Hy8+s6O3mHjsbS918F9owQ==
   dependencies:
     "@types/lodash" "^4.17.25"
     class-validator "^0.15.1"
@@ -1026,6 +1026,11 @@ circular-json-for-egg@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmmirror.com/circular-json-for-egg/-/circular-json-for-egg-1.0.0.tgz#eacb71b57af28b4822cabc52a5961cd2f0817fc5"
   integrity sha512-BzMR1dg0+YqcFoMETHq0gFeQNNKliXI1Oe+C0nx/4npLaohsR7/Oj3UFht65MLwF7zs6x13gOr+f4+JeYni6vw==
+
+class-transformer@0.5.1:
+  version "0.5.1"
+  resolved "https://registry.npmmirror.com/class-transformer/-/class-transformer-0.5.1.tgz#24147d5dffd2a6cea930a3250a677addf96ab336"
+  integrity sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==
 
 class-validator@^0.15.1:
   version "0.15.1"

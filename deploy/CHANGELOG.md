@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-22：恢复服务名称前缀并共享请求上下文
+
+- 影响机器：Company、Home；需与 Account、Finance、Manager 同一发布窗口部署。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.4`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：Account 对外路由固定为服务名称前缀 `/api/account`，Consumer 仅作为 Account 内部 `/consumer/**` 模块，不新增独立 Gateway 路由；Finance 保持 `/api/finance`。请求 ID 中间件改由共享包引用，并删除 Gateway 本地重复 `src/common` 文件。
+- 机器侧操作：部署脚本在 Company、Home 各自 Nacos Data ID 内把遗留 Account 根前缀 `/api` 原地迁移为 `/api/account`，不复制或覆盖整份跨机器配置；无需修改 `.env`、数据库、Redis、端口、Runner、部署目录或外部网络。
+- 验证命令：执行 `yarn build`；部署后验证 `/health/live`、`/api/account/health`、`/api/finance/health` 的业务 `code=200`，并确认 `/api/account/consumer/column` 能转发到 Account。
+- 回滚方法：同时回滚 Gateway 和 Manager 到上一组健康镜像，并将 Nacos Account 前缀恢复为上一版本使用的值；不回滚数据库或其他服务数据。
+
 ## 2026-08-19：共享基础包 1.1.2 与网关数据边界
 
 - 影响机器：Company、Home。

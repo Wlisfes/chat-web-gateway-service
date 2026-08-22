@@ -7,7 +7,7 @@
 | 容器                 | `chat-web-gateway-service`                         |
 | 访问地址             | `http://127.0.0.1:3999`                            |
 | 健康检查             | `http://127.0.0.1:3999/health`                     |
-| Account 转发检查     | `http://127.0.0.1:3999/api/health`                 |
+| Account 转发检查     | `http://127.0.0.1:3999/api/account/health`         |
 | Finance 转发检查     | `http://127.0.0.1:3999/api/finance/health`         |
 | 部署目录             | `/opt/chat-web-gateway-service`                    |
 | Docker 网络          | `chat-web-infrastructure`                          |
@@ -22,7 +22,7 @@ Namespace ID 是每台 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
-部署会把遗留 `/api/windows/finance`、`/api/account` 幂等迁移为 `/api/finance`、`/api`，并验证 `/api/finance/health` 响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制另一台完整 Nacos 配置。
+部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制另一台完整 Nacos 配置。
 
 ## 五分钟排障
 
@@ -32,7 +32,7 @@ Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Fi
 docker inspect chat-web-gateway-service --format "{{.Config.Image}} {{.State.Status}} {{.State.Health.Status}}"
 docker logs --tail 200 chat-web-gateway-service
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/account/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/finance/health
 ```
 

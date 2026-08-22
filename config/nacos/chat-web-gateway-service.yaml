@@ -14,7 +14,7 @@ gateway:
         credentials: false
     routes:
         - id: account
-          prefix: /api
+          prefix: /api/account
           serviceName: chat-web-account-service
           fallbackUrl: http://chat-web-account-service:3000
           enabled: true

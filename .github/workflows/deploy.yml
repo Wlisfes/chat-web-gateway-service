@@ -139,19 +139,17 @@ jobs:
                   cd "$DEPLOY_PATH"
                   ./deploy.sh "$IMAGE" compose.yml
 
-            - name: Verify Finance route
+            - name: Verify service routes
               shell: bash
               run: |
                   set -eu
                   docker exec chat-web-gateway-service node -e '
-                    require("http").get("http://127.0.0.1:3999/api/finance/health", response => {
-                      let body = ""
-                      response.setEncoding("utf8")
-                      response.on("data", chunk => { body += chunk })
-                      response.on("end", () => {
-                        try { process.exit(JSON.parse(body).code === 200 ? 0 : 1) } catch { process.exit(1) }
-                      })
-                    }).on("error", () => process.exit(1))'
+                    const paths = ["/api/account/health", "/api/finance/health"]
+                    Promise.all(paths.map(async path => {
+                      const response = await fetch(`http://127.0.0.1:3999${path}`)
+                      const body = await response.json()
+                      if (body.code !== 200) throw new Error(`${path} returned business code ${body.code}`)
+                    })).catch(error => { console.error(error.message); process.exit(1) })'
 
             - name: Log out from GitHub Container Registry
               if: always()
