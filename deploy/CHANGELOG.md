@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：新增 CRM 服务动态路由
+
+- 影响机器：Company、Home；需与 CRM 首次发布处于同一部署窗口。
+- 关联版本：`chat-web-crm-service` 首个正式版本；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：Nacos `gateway.routes` 新增唯一服务前缀 `/api/crm`，转发到 `chat-web-crm-service:3020`；部署迁移脚本幂等追加 CRM 路由，源码不硬编码代理；部署后验证 Account、Finance、CRM 三个健康端点。
+- 机器侧操作：无需新增数据库或 Redis 配置；确认 CRM 已注册到同一 Nacos Namespace/Group，并保持 `chat-web-infrastructure` 网络可达。
+- 验证命令：执行 `yarn build`；部署后检查 `/api/account/health`、`/api/finance/health`、`/api/crm/health` 的业务 `code=200`，并确认 `/api/crm/sms/**` 正确剥离服务前缀。
+- 回滚方法：从 Nacos `gateway.routes` 删除 CRM 条目并回滚 Gateway 镜像；不影响 CRM 数据库和容器。
+
 ## 2026-08-22：共享请求日志与 Docker 日志轮转
 
 - 影响机器：Company、Home；需与 Account、Finance、Manager 同一发布窗口部署。

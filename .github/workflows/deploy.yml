@@ -144,7 +144,7 @@ jobs:
               run: |
                   set -eu
                   docker exec chat-web-gateway-service node -e '
-                    const paths = ["/api/account/health", "/api/finance/health"]
+                    const paths = ["/api/account/health", "/api/finance/health", "/api/crm/health"]
                     Promise.all(paths.map(async path => {
                       const response = await fetch(`http://127.0.0.1:3999${path}`)
                       const body = await response.json()
