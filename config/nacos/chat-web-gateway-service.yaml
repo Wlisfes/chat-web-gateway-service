@@ -23,6 +23,11 @@ gateway:
           serviceName: chat-web-finance-service
           fallbackUrl: http://chat-web-finance-service:3010
           enabled: true
+        - id: crm
+          prefix: /api/crm
+          serviceName: chat-web-crm-service
+          fallbackUrl: http://chat-web-crm-service:3020
+          enabled: true
 
 nacos:
     discovery:

@@ -20,14 +20,27 @@ function configParameters() {
 }
 
 function migrateRoutePrefixes(content) {
-    const migrated = content
+    let migrated = content
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api\/windows\/finance['"]?[ \t]*$/gm, '$1/api/finance')
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api['"]?[ \t]*$/gm, '$1/api/account')
+    if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/crm['"]?[ \t]*$/m.test(migrated)) {
+        const crmRoute =
+            '        - id: crm\n' +
+            '          prefix: /api/crm\n' +
+            '          serviceName: chat-web-crm-service\n' +
+            '          fallbackUrl: http://chat-web-crm-service:3020\n' +
+            '          enabled: true\n'
+        if (!/^nacos:\s*$/m.test(migrated)) throw new Error('Gateway Nacos config must contain the root nacos section')
+        migrated = migrated.replace(/^(nacos:\s*)$/m, `${crmRoute}\n$1`)
+    }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/finance['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Finance prefix /api/finance')
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/account['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Account prefix /api/account')
+    }
+    if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/crm['"]?[ \t]*$/m.test(migrated)) {
+        throw new Error('Gateway Nacos config must contain the CRM prefix /api/crm')
     }
     if (/^[ \t]*prefix:[ \t]*['"]?\/api['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must not contain the root prefix /api')
