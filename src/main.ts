@@ -1,8 +1,7 @@
-import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
-import { createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
+import { createRequestLoggingMiddleware, createStructuredLogger } from '@wlisfes/chat-web-base-schema/logging'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
@@ -12,9 +11,10 @@ import { AppModule } from '@/app.module'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
 
+const logger = createStructuredLogger({ serviceName: 'chat-web-gateway-service' })
+
 async function bootstrap(): Promise<void> {
-    const app = await NestFactory.create(AppModule, { bodyParser: false })
-    const logger = new Logger('Bootstrap')
+    const app = await NestFactory.create(AppModule, { bodyParser: false, logger })
     const serviceConfig = app.get(ServiceConfigService)
     const expressApplication = app.getHttpAdapter().getInstance() as Express
 
@@ -118,7 +118,6 @@ async function bootstrap(): Promise<void> {
 }
 
 void bootstrap().catch(error => {
-    const logger = new Logger('Bootstrap')
-    logger.error(error instanceof Error ? error.stack : String(error))
+    logger.error(error, 'Bootstrap')
     process.exitCode = 1
 })

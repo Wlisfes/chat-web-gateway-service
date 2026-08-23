@@ -83,6 +83,7 @@ jobs:
             packages: read
         env:
             DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-gateway-service' }}
+            DEPLOYMENT_ENVIRONMENT: production-${{ matrix.server }}
             IMAGE: ${{ needs.build.outputs.image }}
 
         steps:

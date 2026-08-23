@@ -158,3 +158,7 @@ Self-hosted Runner 默认只属于注册它的仓库。即使同一台机器已�
 - 跨宿主机使用 Nacos 时，应将 `NACOS_REGISTER_IP` 设置成其他节点能够访问的地址。
 - 当前限流状态存储在单个网关进程内；网关多副本部署后，如需全局限流应接入 Redis 或使用 APISIX/Kong 等专用网关。
 - Knife4j 根据 `gateway.routes` 聚合网关及业务服务文档；业务服务必须统一暴露 `/api/swagger-json`。
+
+## 可观测性
+
+Docker 部署通过 Grafana Alloy 自动采集结构化 JSON 日志、OpenTelemetry Trace 和 Node 运行指标。网关会保留并下传 `x-request-id`，日志中的 `traceId` 可跳转到 Tempo 查看完整跨服务链路。配置与排障命令见 `deploy/RUNBOOK.md`。

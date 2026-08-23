@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：接入统一日志、指标与链路追踪
+
+- 影响机器：Home；Company 当前离线，本次不等待其部署结果。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.6`、`@opentelemetry/auto-instrumentations-node@0.79.0`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：Nest 启动与请求日志统一输出单行 JSON，并关联 `requestId`、`traceId`、`spanId`；自动采集 HTTP、Nest、跨服务调用和 Node 运行指标，通过 Alloy OTLP/HTTP 上报到 Tempo 与 Prometheus；部署脚本把镜像完整 SHA 写入 `service.version`。
+- 机器侧操作：先部署 `chat-web-observability`，确认 `chat-web-alloy:4318` 在 `chat-web-infrastructure` 网络内可达；现有 `.env` 无需新增必填项，默认环境标识为 `production-home`。
+- 验证命令：执行 `yarn format:check && yarn test` 和 `docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet`；部署后验证 `http://127.0.0.1:3999/health/live`，并在 Grafana 查询 `service=chat-web-gateway-service` 的日志、指标和 Trace。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA 镜像；无需回滚数据库、Redis、Nacos 或观测平台数据。
+
 ## 2026-08-23：升级 Knife4j 响应模型解析
 
 - 影响机器：Home；Company 当前离线，本次不等待其部署结果。

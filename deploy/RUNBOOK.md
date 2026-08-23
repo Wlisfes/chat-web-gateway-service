@@ -1,5 +1,17 @@
 # Gateway 服务部署与故障恢复手册
 
+## 可观测性排障
+
+容器日志为单行 JSON，由 Alloy 自动采集。日志中的 `requestId` 可串联网关和业务服务，`traceId`、`spanId` 可直接跳转到 Tempo。容器启动后确认以下环境和链路：
+
+```bash
+docker inspect chat-web-gateway-service --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(OTEL_SERVICE_NAME|OTEL_SERVICE_VERSION|OTEL_EXPORTER_OTLP_ENDPOINT|DEPLOYMENT_ENVIRONMENT)='
+docker logs --tail 100 chat-web-gateway-service
+docker run --rm --network chat-web-infrastructure node:22-alpine node -e 'fetch("http://chat-web-alloy:12345/-/ready").then(async response => { console.log(response.status, await response.text()); process.exit(response.ok ? 0 : 1) })'
+```
+
+Grafana 中使用 `{service="chat-web-gateway-service"}` 查询日志。若日志存在但没有 Trace，检查 `NODE_OPTIONS` 和 Alloy 4318 端口；若 Trace 存在但没有指标，检查 Prometheus remote-write 接收和 `OTEL_METRIC_EXPORT_INTERVAL`。
+
 ## 当前基线
 
 | 项目                 | 值                                                 |
