@@ -30,6 +30,7 @@ services:
             OTEL_TRACES_SAMPLER: parentbased_traceidratio
             OTEL_TRACES_SAMPLER_ARG: '1'
             OTEL_NODE_ENABLED_INSTRUMENTATIONS: http,express,nestjs-core,undici,runtime-node
+            OTEL_NODE_RESOURCE_DETECTORS: ${OTEL_NODE_RESOURCE_DETECTORS:-env,host,os,process,serviceinstance,container}
             OTEL_METRIC_EXPORT_INTERVAL: '15000'
             DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-production-home}
             OTEL_RESOURCE_ATTRIBUTES: service.namespace=chat-web,deployment.environment.name=${DEPLOYMENT_ENVIRONMENT:-production-home}
