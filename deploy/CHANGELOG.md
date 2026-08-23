@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：升级 Knife4j 响应模型解析
+
+- 影响机器：Home；Company 当前离线，本次不等待其部署结果。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.4`、`nestjs-knife4j-plus@1.0.9`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：替换停止维护且无法展开 OAS3 嵌套响应字段的旧版 `nest-knife4j`，升级到支持 OAS3 组合 Schema 和响应示例解析的 Knife4j UI；统一响应中的 `data` 业务字段、字段类型、中文说明和完整示例可在聚合文档中显示。
+- 机器侧操作：由流水线重新构建并拉取 Gateway 镜像；无需修改 Nacos 路由、跨域、`.env`、数据库、Redis、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn format:check --end-of-line auto && yarn test`；部署后刷新 `/doc.html`，检查 Account 菜单详情和 CRM 短信应用更新接口的响应参数与响应示例。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA 镜像；无需回滚 Nacos、数据库或 Redis。
+
 ## 2026-08-23：补全网关接口文档模型
 
 - 影响机器：Home；Company 当前离线，本次不等待其部署结果。
