@@ -57,6 +57,11 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
             for (const [contentType, media] of contents) {
                 assertTypedSchema(media.schema, `${operationLabel} ${status} ${contentType}`)
                 assert.notEqual(media.example, undefined, `${operationLabel} ${status} ${contentType} 缺少响应示例`)
+                assert.equal(
+                    JSON.stringify(media.schema).includes('"$ref"'),
+                    false,
+                    `${operationLabel} ${status} 响应不能包含 Knife4j 无法展开的 $ref`
+                )
                 if (contentType === 'application/json' && status !== '302') {
                     assert.equal(media.schema.type, 'object', `${operationLabel} 必须使用 Knife4j 可展开的对象响应`)
                     assert.equal(media.schema.allOf, undefined, `${operationLabel} 不能使用 Knife4j 不支持的顶层 allOf`)
