@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：同步共享 Feign 运行时版本
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.3.0`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：同步共享包 1.3.0，与 Account、Finance、CRM 使用同一响应、日志和 Feign 运行时版本；Gateway 继续只负责公开路由和反向代理，不作为业务 Feign 调用方。
+- 机器侧操作：无需修改 Nacos 路由、跨域、`.env`、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn format:check && yarn test`；部署后检查 `/api/health` 及 Account、Finance、CRM 代理路由。
+- 回滚方法：恢复上一条健康 Gateway 镜像；不回滚业务服务数据库和 Nacos。
+
 ## 2026-08-23：同步共享鉴权运行时版本
 
 - 影响机器：Company、Home。
