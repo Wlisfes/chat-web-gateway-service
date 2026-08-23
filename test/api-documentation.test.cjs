@@ -57,16 +57,12 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
             for (const [contentType, media] of contents) {
                 assertTypedSchema(media.schema, `${operationLabel} ${status} ${contentType}`)
                 assert.notEqual(media.example, undefined, `${operationLabel} ${status} ${contentType} 缺少响应示例`)
-                assert.equal(
-                    JSON.stringify(media.schema).includes('"$ref"'),
-                    false,
-                    `${operationLabel} ${status} 响应不能包含 Knife4j 无法展开的 $ref`
-                )
                 if (contentType === 'application/json' && status !== '302') {
-                    assert.equal(media.schema.type, 'object', `${operationLabel} 必须使用 Knife4j 可展开的对象响应`)
-                    assert.equal(media.schema.allOf, undefined, `${operationLabel} 不能使用 Knife4j 不支持的顶层 allOf`)
-                    assert.deepEqual(Object.keys(media.schema.properties ?? {}), ['data', 'code', 'message', 'timestamp'])
-                    assertTypedSchema(media.schema.properties?.data, `${operationLabel} data`)
+                    assert.equal(media.schema.allOf?.length, 2, `${operationLabel} 必须使用 Knife4j 可展开的 allOf 响应`)
+                    assert.match(media.schema.allOf[0].$ref, /\/ApiResponseDocumentDto$/, `${operationLabel} 缺少统一响应模型`)
+                    const dataSchema = media.schema.allOf[1].properties?.data
+                    assertTypedSchema(dataSchema, `${operationLabel} data`)
+                    assert.deepEqual(media.schema.example, media.example, `${operationLabel} Schema 和媒体响应示例不一致`)
                     assert.equal(media.example.code, 200, `${operationLabel} 响应示例缺少业务状态码`)
                     assert.notEqual(media.example.data, undefined, `${operationLabel} 响应示例缺少 data`)
                 }

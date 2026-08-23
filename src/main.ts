@@ -7,7 +7,7 @@ import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
-import { knife4jSetup } from 'nest-knife4j'
+import { knife4jSetup } from 'nestjs-knife4j-plus'
 import { AppModule } from '@/app.module'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
@@ -86,7 +86,7 @@ async function bootstrap(): Promise<void> {
         }))
     ]
     expressApplication.get('/services.json', (_request, response) => response.json(getKnife4jServices()))
-    knife4jSetup(app, getKnife4jServices())
+    await knife4jSetup(app, getKnife4jServices())
 
     await app.init()
     if (serviceConfig.getTrustProxy()) {
