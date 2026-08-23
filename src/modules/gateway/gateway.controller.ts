@@ -1,37 +1,51 @@
-import { Controller, Get, Redirect } from '@nestjs/common'
-import { ApiFoundResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { Get, Redirect } from '@nestjs/common'
+import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { GatewayService } from '@/modules/gateway/gateway.service'
+import {
+    DocumentationRedirectResponseDto,
+    GatewayHealthResponseDto,
+    GatewayInfoResponseDto,
+    GatewayLivenessResponseDto
+} from '@/modules/gateway/dto/gateway-response.dto'
 
-@ApiTags('网关')
-@Controller()
+@ApifoxController('网关')
 export class GatewayController {
     constructor(private readonly gatewayService: GatewayService) {}
 
-    @Get()
+    @ApiServiceDecorator(Get(), {
+        operation: { summary: '打开 Knife4j 聚合文档' },
+        response: {
+            status: 302,
+            type: DocumentationRedirectResponseDto,
+            envelope: false,
+            description: '跳转到 /doc.html'
+        }
+    })
     @Redirect('/doc.html', 302)
-    @ApiOperation({ summary: '打开 Knife4j 聚合文档' })
-    @ApiFoundResponse({ description: '跳转到 /doc.html' })
     openDocumentation() {
         return { url: '/doc.html' }
     }
 
-    @Get('gateway')
-    @ApiOperation({ summary: '查看网关信息及已配置路由' })
-    @ApiOkResponse({ description: '网关信息' })
+    @ApiServiceDecorator(Get('gateway'), {
+        operation: { summary: '查看网关信息及已配置路由' },
+        response: { type: GatewayInfoResponseDto, description: '网关信息及路由列表' }
+    })
     getInfo() {
         return this.gatewayService.getInfo()
     }
 
-    @Get('health')
-    @ApiOperation({ summary: '网关健康检查' })
-    @ApiOkResponse({ description: '网关及服务发现状态' })
+    @ApiServiceDecorator(Get('health'), {
+        operation: { summary: '网关健康检查' },
+        response: { type: GatewayHealthResponseDto, description: '网关及服务发现状态' }
+    })
     getHealth() {
         return this.gatewayService.getHealth()
     }
 
-    @Get('health/live')
-    @ApiOperation({ summary: '网关存活检查' })
-    @ApiOkResponse({ description: '进程正常时返回 UP' })
+    @ApiServiceDecorator(Get('health/live'), {
+        operation: { summary: '网关存活检查' },
+        response: { type: GatewayLivenessResponseDto, description: '进程正常时返回 UP' }
+    })
     getLiveness() {
         return {
             status: 'UP',
@@ -39,9 +53,10 @@ export class GatewayController {
         }
     }
 
-    @Get('health/ready')
-    @ApiOperation({ summary: '网关就绪检查' })
-    @ApiOkResponse({ description: '网关路由及服务发现状态' })
+    @ApiServiceDecorator(Get('health/ready'), {
+        operation: { summary: '网关就绪检查' },
+        response: { type: GatewayHealthResponseDto, description: '网关路由及服务发现状态' }
+    })
     getReadiness() {
         return this.gatewayService.getHealth()
     }

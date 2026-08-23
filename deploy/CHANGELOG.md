@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：补全网关接口文档模型
+
+- 影响机器：Home；Company 当前离线，本次不等待其部署结果。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.2`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：网关信息、服务发现状态、路由健康信息、存活检查和 302 文档跳转均改用聚合 Swagger/Apifox 装饰器并提供明确响应类型；新增 OpenAPI 自动完整性测试和格式检查脚本。
+- 机器侧操作：无需修改 Nacos 路由、跨域、`.env`、数据库、Redis、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn format:check --end-of-line auto && yarn test`；部署后检查 `/api/swagger-json`、`/health`、`/health/live` 和 `/gateway`。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA 镜像；无需回滚 Nacos、数据库或 Redis。
+
 ## 2026-08-23：同步共享 Feign 运行时版本
 
 - 影响机器：Company、Home。
