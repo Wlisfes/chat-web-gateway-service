@@ -56,10 +56,14 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
             assert.ok(contents.length > 0, `${operationLabel} ${status} 缺少响应内容`)
             for (const [contentType, media] of contents) {
                 assertTypedSchema(media.schema, `${operationLabel} ${status} ${contentType}`)
+                assert.notEqual(media.example, undefined, `${operationLabel} ${status} ${contentType} 缺少响应示例`)
                 if (contentType === 'application/json' && status !== '302') {
-                    assert.ok(media.schema.allOf, `${operationLabel} 必须使用统一响应外壳`)
-                    assert.equal(media.schema.allOf[0].$ref, '#/components/schemas/ApiResponseDocumentDto')
-                    assertTypedSchema(media.schema.allOf[1]?.properties?.data, `${operationLabel} data`)
+                    assert.equal(media.schema.type, 'object', `${operationLabel} 必须使用 Knife4j 可展开的对象响应`)
+                    assert.equal(media.schema.allOf, undefined, `${operationLabel} 不能使用 Knife4j 不支持的顶层 allOf`)
+                    assert.deepEqual(Object.keys(media.schema.properties ?? {}), ['data', 'code', 'message', 'timestamp'])
+                    assertTypedSchema(media.schema.properties?.data, `${operationLabel} data`)
+                    assert.equal(media.example.code, 200, `${operationLabel} 响应示例缺少业务状态码`)
+                    assert.notEqual(media.example.data, undefined, `${operationLabel} 响应示例缺少 data`)
                 }
             }
         }
