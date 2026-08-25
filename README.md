@@ -161,4 +161,4 @@ Self-hosted Runner 默认只属于注册它的仓库。即使同一台机器已�
 
 ## 可观测性
 
-Docker 部署通过 Grafana Alloy 自动采集结构化 JSON 日志、OpenTelemetry Trace 和 Node 运行指标。网关会保留并下传 `x-request-id`，日志中的 `traceId` 可跳转到 Tempo 查看完整跨服务链路。配置与排障命令见 `deploy/RUNBOOK.md`。
+Docker 部署输出结构化单行 JSON 日志，网关会保留并下传 `x-request-id`，可通过容器标准输出直接串联请求排障，完整命令见 `deploy/RUNBOOK.md`。

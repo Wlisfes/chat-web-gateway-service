@@ -19,21 +19,7 @@ services:
             NODE_ENV: production
             PORT: 3999
             TZ: ${TZ:-Asia/Shanghai}
-            NODE_OPTIONS: --require @opentelemetry/auto-instrumentations-node/register
-            OTEL_SERVICE_NAME: chat-web-gateway-service
-            OTEL_SERVICE_VERSION: ${SERVICE_VERSION:-local}
-            OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://chat-web-alloy:4318}
-            OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-            OTEL_TRACES_EXPORTER: otlp
-            OTEL_METRICS_EXPORTER: otlp
-            OTEL_LOGS_EXPORTER: none
-            OTEL_TRACES_SAMPLER: parentbased_traceidratio
-            OTEL_TRACES_SAMPLER_ARG: '1'
-            OTEL_NODE_ENABLED_INSTRUMENTATIONS: http,express,nestjs-core,undici,runtime-node
-            OTEL_NODE_RESOURCE_DETECTORS: ${OTEL_NODE_RESOURCE_DETECTORS:-env,host,os,process,serviceinstance,container}
-            OTEL_METRIC_EXPORT_INTERVAL: '15000'
             DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-production-home}
-            OTEL_RESOURCE_ATTRIBUTES: service.namespace=chat-web,service.version=${SERVICE_VERSION:-local},deployment.environment.name=${DEPLOYMENT_ENVIRONMENT:-production-home}
             NACOS_REGISTER_PORT: ${NACOS_REGISTER_PORT:-3999}
         ports:
             - '${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-3999}:3999'

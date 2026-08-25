@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-25：移除 OpenTelemetry 运行依赖
+
+- 影响机器：Home；Company 当前离线，本次不等待其部署结果。
+- 关联版本：Gateway 本次完整 Git SHA 镜像。
+- 变更内容：移除 OpenTelemetry 自动插桩、OTLP Trace/指标导出和 Alloy 地址配置；保留单行 JSON、请求 ID 与 Docker 日志轮转。
+- 机器侧操作：部署脚本会从现有 `.env` 自动移除遗留 `OTEL_*` 和 OpenTelemetry `NODE_OPTIONS`；无需修改 Nacos、端口或网络。
+- 验证命令：执行 `yarn format:check && yarn test` 和 Compose 配置校验；部署后确认容器环境中不存在 `NODE_OPTIONS`、`OTEL_*`，并验证 `/health/live` 及三个业务服务健康代理。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA 镜像；业务服务与数据不回滚。
+
 ## 2026-08-23：接入统一日志、指标与链路追踪
 
 - 影响机器：Home；Company 当前离线，本次不等待其部署结果。
