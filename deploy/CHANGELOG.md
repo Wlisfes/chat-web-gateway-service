@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-26：根目录运行配置收口到 Nacos
+
+- 影响机器：Company、Home；容器部署参数和双机矩阵不变。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.10`、Gateway 本次完整 Git SHA 镜像；Nacos Data ID `chat-web-gateway-service.yaml`。
+- 变更内容：根目录 `.env.example` 仅保留 `NODE_ENV`、`PORT` 和 Nacos 建连字段；服务后备地址不再出现在根示例，运行时统一读取 Nacos 远端动态路由，仓库原有 `config/nacos/chat-web-gateway-service.yaml` 仅作为结构参考。
+- 机器侧操作：两台机器继续维护各自 Namespace 中的 Gateway 路由；服务器 `deploy/.env` 和部署迁移脚本保持不变，不得使用根目录示例覆盖生产文件。
+- 验证命令：执行 `yarn format:check && yarn test`；确认根 `.env.example` 的有效键只有 `NODE_ENV`、`PORT`、`NACOS_SERVER`、`NACOS_NAMESPACE`，并验证 Account、Finance、CRM 三条 Nacos 路由。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA；保留当前 Nacos 路由，业务服务和数据不回滚。
+
 ## 2026-08-26：同步 Nacos 运行时共享包版本
 
 - 影响机器：Company、Home；两台机器继续部署同一个 Gateway 完整 Git SHA 镜像。
