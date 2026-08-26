@@ -3,8 +3,8 @@
 ## 2026-08-26：同步 Nacos 运行时共享包版本
 
 - 影响机器：Company、Home；两台机器继续部署同一个 Gateway 完整 Git SHA 镜像。
-- 关联版本：`@wlisfes/chat-web-base-schema@1.4.8`；Gateway 本次完整 Git SHA 镜像。
-- 变更内容：将共享包精确升级到 1.4.8，与 Account、Finance、CRM、Skyline 的 Nacos 运行时契约保持一致；Gateway 继续使用仓库内独立 Nacos 模块，路由和注册行为不变。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.9`；Gateway 本次完整 Git SHA 镜像。
+- 变更内容：将共享包精确升级到 1.4.9，与 Account、Finance、CRM、Skyline 的 Nacos 运行时契约保持一致；Gateway 继续使用仓库内独立 Nacos 模块，路由和注册行为不变。
 - 机器侧操作：无需修改 Gateway `.env`、Nacos 路由、端口、数据库、Redis、Runner、部署目录或外部网络。
 - 验证命令：执行 `yarn format:check && yarn test` 和 `IMAGE=example.invalid/chat-web-gateway-service:compose-check docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet`；部署后检查 `/health/live` 及 Account、Finance、CRM 健康代理。
 - 回滚方法：恢复上一条健康 Gateway 完整 SHA 镜像；无需回滚业务服务、数据库、Redis 或 Nacos 数据。
