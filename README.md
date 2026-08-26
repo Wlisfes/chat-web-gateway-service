@@ -47,7 +47,9 @@ yarn dev
 - 财务服务：`http://127.0.0.1:3999/api/finance/**`
 - CRM 服务：`http://127.0.0.1:3999/api/crm/**`
 
-如果本地没有 Nacos，可以关闭配置中心和服务发现：
+根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`；仓库中的同名 YAML 仅作结构参考。
+
+如果本地没有 Nacos，可在启动命令中临时关闭配置中心和服务发现并指定后备地址，不写入根目录 `.env.example`：
 
 ```dotenv
 NACOS_CONFIG_ENABLED=false
@@ -56,12 +58,11 @@ ACCOUNT_SERVICE_URL=http://127.0.0.1:3000
 FINANCE_SERVICE_URL=http://127.0.0.1:3010
 ```
 
-启用 Nacos 时使用以下配置：
+启用 Nacos 时使用以下连接配置，Data ID 和 Group 使用代码默认值：
 
 ```dotenv
-NACOS_NAMESPACE=0210cecf-114e-43e6-a260-1d4b263fb189
-NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
-NACOS_CONFIG_GROUP=DEFAULT_GROUP
+NACOS_SERVER=127.0.0.1:8848
+NACOS_NAMESPACE=replace-with-nacos-namespace-id
 ```
 
 ## 健康检查

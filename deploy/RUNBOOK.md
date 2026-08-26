@@ -29,6 +29,8 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 Namespace ID 是每台 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据另一台机器猜测。
 
+仓库根目录 `.env.example` 只用于本地进程启动和 Nacos 建连；路由、后备地址、跨域、限流及注册发现配置统一以 Nacos 远端 `chat-web-gateway-service.yaml` 为准，仓库中的同名 YAML 仅作结构参考。服务器 `deploy/.env.example` 还承担 Compose 与部署脚本参数，不得用根示例覆盖。
+
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
 部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制另一台完整 Nacos 配置。
