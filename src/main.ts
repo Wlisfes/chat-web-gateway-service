@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
-import { createRequestLoggingMiddleware, createStructuredLogger } from '@wlisfes/chat-web-base-schema/logging'
+import { ReadableConsoleLogger, createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
@@ -11,7 +11,8 @@ import { AppModule } from '@/app.module'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
 
-const logger = createStructuredLogger({ serviceName: 'chat-web-gateway-service' })
+const serviceName = 'chat-web-gateway-service'
+const logger = new ReadableConsoleLogger({ NODE_ENV: process.env.NODE_ENV, prefix: serviceName })
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, { bodyParser: false, logger })
@@ -46,7 +47,7 @@ async function bootstrap(): Promise<void> {
 
     app.enableCors((_request, callback) => callback(null, serviceConfig.getCorsOptions()))
     app.use(requestContextMiddleware)
-    app.use(createRequestLoggingMiddleware({ serviceName: 'chat-web-gateway-service' }))
+    app.use(createRequestLoggingMiddleware(serviceName))
     app.use(
         helmet({
             // Swagger UI 使用内联脚本和样式；CSP 应由最外层反向代理按实际域名配置。
