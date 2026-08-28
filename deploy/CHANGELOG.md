@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：部署拓扑收敛到 chat-home-server
+
+- 影响机器：仅 `chat-home-server`；原另一台部署机器已废弃并下线，不再创建部署任务。
+- 关联版本：Gateway 本次 `developer` 配置提交；未合并 `main`，不触发镜像构建或线上部署。
+- 变更内容：删除 Company/Home 双机矩阵，Runner 选择标签统一为 `chat-home-server`，继续使用 `production-home` Environment 和 `/opt/chat-web-gateway-service` 部署目录。
+- 机器侧操作：Gateway 仓库在线 Runner 的自定义标签已由 `chat-server-home` 更新为 `chat-home-server`，systemd 服务保持运行；无需修改 `.env`、Nacos 路由、端口或 Docker 网络。
+- 验证命令：校验 Actions YAML，确认现行配置不再引用 `chat-server-company`、`chat-server-home`、`production-company` 或部署矩阵。
+- 回滚方法：若新标签无法调度，仅把当前单机任务和在线 Runner 的自定义标签临时改回 `chat-server-home`；不得恢复废弃机器的部署任务，Nacos 路由与业务数据不回滚。
+
 ## 2026-08-26：根目录运行配置收口到 Nacos
 
 - 影响机器：Company、Home；容器部署参数和双机矩阵不变。

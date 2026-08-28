@@ -58,32 +58,22 @@ jobs:
                       github_token=${{ secrets.GITHUB_TOKEN }}
 
     deploy:
-        name: Deploy to ${{ matrix.server }}
+        name: Deploy to chat-home-server
         needs: build
-        strategy:
-            fail-fast: false
-            matrix:
-                include:
-                    - server: company
-                      runner: chat-server-company
-                      environment: production-company
-                    - server: home
-                      runner: chat-server-home
-                      environment: production-home
         runs-on:
             - self-hosted
             - linux
-            - ${{ matrix.runner }}
-        environment: ${{ matrix.environment }}
+            - chat-home-server
+        environment: production-home
         concurrency:
-            group: deploy-${{ matrix.server }}
+            group: deploy-chat-home-server
             cancel-in-progress: true
         permissions:
             contents: read
             packages: read
         env:
             DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-gateway-service' }}
-            DEPLOYMENT_ENVIRONMENT: production-${{ matrix.server }}
+            DEPLOYMENT_ENVIRONMENT: production-home
             IMAGE: ${{ needs.build.outputs.image }}
 
         steps:

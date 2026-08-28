@@ -24,16 +24,16 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | Nacos Group          | `DEFAULT_GROUP`                                    |
 | Nacos Namespace 名称 | `chat-web-service`                                 |
 | Nacos 服务名         | `chat-web-gateway-service`                         |
-| Company Runner       | `chat-server-company-gateway`                      |
-| Home Runner 标签     | `chat-server-home`                                 |
+| 部署主机             | `chat-home-server`                                 |
+| Runner 标签          | `chat-home-server`                                 |
 
-Namespace ID 是每台 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据另一台机器猜测。
+Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
 仓库根目录 `.env.example` 只用于本地进程启动和 Nacos 建连；路由、后备地址、跨域、限流及注册发现配置统一以 Nacos 远端 `chat-web-gateway-service.yaml` 为准，仓库中的同名 YAML 仅作结构参考。服务器 `deploy/.env.example` 还承担 Compose 与部署脚本参数，不得用根示例覆盖。
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
-部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制另一台完整 Nacos 配置。
+部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制历史机器的完整 Nacos 配置。
 
 ## 五分钟排障
 
@@ -61,29 +61,27 @@ docker logs --tail 100 chat-web-nacos
 
 Gateway、Account、Finance、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，Account 和 Finance 后备地址分别为 `http://chat-web-account-service:3000`、`http://chat-web-finance-service:3010`。
 
-### 3. 检查 Company Runner 与 WSL 保活
+### 3. 检查 chat-home-server Runner
 
 ```powershell
-wsl -d Ubuntu-22.04 -u root -- systemctl status actions.runner.Wlisfes-chat-web-gateway-service.chat-server-company-gateway.service
-Get-ScheduledTask -TaskName "Chat Web GitHub Runner Company"
+wsl -d Ubuntu-24.04 -u root -- systemctl status actions.runner.Wlisfes-chat-web-gateway-service.chat-server-home-gateway.service
 ```
 
 恢复命令：
 
 ```powershell
-Start-ScheduledTask -TaskName "Chat Web GitHub Runner Company"
-wsl -d Ubuntu-22.04 -u root -- systemctl restart actions.runner.Wlisfes-chat-web-gateway-service.chat-server-company-gateway.service
+wsl -d Ubuntu-24.04 -u root -- systemctl restart actions.runner.Wlisfes-chat-web-gateway-service.chat-server-home-gateway.service
 ```
 
 ### 4. 检查部署结果
 
-Actions 应满足：Build 成功、Home 与 Company 各自成功。容器镜像标签必须等于本次提交的完整 Git SHA。
+Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器镜像标签必须等于本次提交的完整 Git SHA。
 
 ## 常见故障
 
 | 现象                    | 原因                                  | 处理                                                       |
 | ----------------------- | ------------------------------------- | ---------------------------------------------------------- |
-| Company 部署一直 Queued | Gateway 仓库 Runner 离线              | 启动 WSL 保活任务并重启 Gateway Runner                     |
+| 部署一直 Queued         | `chat-home-server` 的 Gateway Runner 离线 | 启动 WSL 并重启 Gateway Runner                          |
 | 3999 拒绝连接           | Gateway 未部署或未通过健康检查        | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
 | Nacos 配置不存在        | Namespace ID、Data ID 或 Group 不一致 | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`      |
 | Account 转发 502        | Account 容器不可达且 Nacos 无健康实例 | 检查 Account 健康和 Docker 网络                            |

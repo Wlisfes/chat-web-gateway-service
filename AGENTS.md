@@ -1,5 +1,11 @@
 # Repository instructions
 
+## 单机部署规则
+
+- 本服务只部署到当前主机 `chat-home-server`，原另一台部署机器已废弃并下线，不得再为废弃机器创建部署任务或多机矩阵。
+- GitHub Actions 使用 `chat-home-server` Runner 标签和 `production-home` Environment，只构建一次完整 Git SHA 镜像并部署到 `/opt/chat-web-gateway-service`。
+- 本仓库使用独立 Self-hosted Runner；部署必须包含健康检查、路由验证和失败自动回滚，不得使用 `--remove-orphans`。
+
 ## 部署变更记录
 
 任何会影响 Docker 构建、服务启动、运行参数、Nacos、路由、端口、健康检查、Runner、部署目录或外部网络的修改，都必须在同一次改动中更新 `deploy/CHANGELOG.md`。
