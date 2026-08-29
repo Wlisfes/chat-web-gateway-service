@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
@@ -14,6 +16,10 @@ import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
 
 const serviceName = 'chat-web-gateway-service'
 const logger = new ReadableConsoleLogger({ NODE_ENV: process.env.NODE_ENV, prefix: serviceName })
+const knife4jDocumentHtml = readFileSync(resolve(dirname(require.resolve('nestjs-knife4j-plus')), '../ui/doc.html'), 'utf8').replace(
+    /<link\b[^>]*\brel=["']prefetch["'][^>]*>/gi,
+    ''
+)
 
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create(AppModule, { bodyParser: false, logger })
@@ -88,6 +94,9 @@ async function bootstrap(): Promise<void> {
         }))
     ]
     expressApplication.get('/services.json', (_request, response) => response.json(getKnife4jServices()))
+    expressApplication.get('/doc.html', (_request, response) => {
+        response.type('html').set('Cache-Control', 'no-cache').send(knife4jDocumentHtml)
+    })
     await knife4jSetup(app, getKnife4jServices())
 
     await app.init()
