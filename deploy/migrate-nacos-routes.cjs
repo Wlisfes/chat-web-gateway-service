@@ -90,96 +90,103 @@ function migrateRoutePrefixes(content) {
 }
 
 function leadingSpaces(line) {
-    return line.match(/^\s*/)[0].length
+    return line.match(/^[ \t]*/)[0].length
 }
 
 function findSectionEnd(lines, startIndex, indent) {
     for (let index = startIndex + 1; index < lines.length; index += 1) {
         const line = lines[index]
-        if (!line.trim()) continue
+        if (!line.trim() || line.trim().startsWith('#')) continue
         if (leadingSpaces(line) <= indent) return index
     }
     return lines.length
 }
 
-function normalizeOriginLine(origin) {
-    return `            - ${origin}`
+function findDirectChild(lines, startIndex, parentIndent, name, sectionEnd) {
+    let childIndent
+    for (let index = startIndex + 1; index < sectionEnd; index += 1) {
+        const line = lines[index]
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+
+        const indent = leadingSpaces(line)
+        if (indent <= parentIndent) return -1
+        childIndent ??= indent
+        if (indent === childIndent && (trimmed === `${name}:` || trimmed.startsWith(`${name}: [`))) {
+            return index
+        }
+    }
+    return -1
+}
+
+function inferNestedIndent(lines, startIndex, parentIndent, sectionEnd) {
+    for (let index = startIndex + 1; index < sectionEnd; index += 1) {
+        const line = lines[index]
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+
+        const indent = leadingSpaces(line)
+        if (indent <= parentIndent) break
+        return Math.max(indent - parentIndent, 2)
+    }
+    return 2
+}
+
+function spaces(count) {
+    return ' '.repeat(count)
+}
+
+function normalizeOriginLine(origin, indent) {
+    return `${spaces(indent)}- ${origin}`
+}
+
+function extractOrigins(lines, startIndex, endIndex) {
+    const block = lines.slice(startIndex, endIndex).join('\n')
+    const origins = block.match(/https?:\/\/[^\s,\]}"']+/g) ?? []
+    return [...new Set(origins.map(origin => origin.replace(/[),.]+$/, '')))]
 }
 
 function migrateManagerCors(content) {
     const lines = content.replace(/\r\n/g, '\n').split('\n')
-    const gatewayIndex = lines.findIndex(line => /^gateway:\s*$/.test(line))
+    const gatewayIndex = lines.findIndex(line => /^\s*gateway:\s*$/.test(line))
     if (gatewayIndex < 0) throw new Error('Gateway Nacos config must contain the root gateway section')
 
-    let gatewayEnd = findSectionEnd(lines, gatewayIndex, 0)
-    let corsIndex = -1
-    for (let index = gatewayIndex + 1; index < gatewayEnd; index += 1) {
-        if (/^ {4}cors:\s*$/.test(lines[index])) {
-            corsIndex = index
-            break
-        }
-    }
+    const gatewayIndent = leadingSpaces(lines[gatewayIndex])
+    const gatewayEnd = findSectionEnd(lines, gatewayIndex, gatewayIndent)
+    const corsIndex = findDirectChild(lines, gatewayIndex, gatewayIndent, 'cors', gatewayEnd)
+    const routesIndex = findDirectChild(lines, gatewayIndex, gatewayIndent, 'routes', gatewayEnd)
+    if (routesIndex < 0) throw new Error('Gateway Nacos config must contain gateway.routes')
 
     if (corsIndex < 0) {
-        const routesIndex = lines.findIndex((line, index) => index > gatewayIndex && index < gatewayEnd && /^ {4}routes:\s*$/.test(line))
-        if (routesIndex < 0) throw new Error('Gateway Nacos config must contain gateway.routes')
+        const routesIndent = leadingSpaces(lines[routesIndex])
+        const indentUnit = inferNestedIndent(lines, routesIndex, routesIndent, gatewayEnd)
+        const propertyIndent = routesIndent + indentUnit
+        const originIndent = propertyIndent + indentUnit
         lines.splice(
             routesIndex,
             0,
-            '    cors:',
-            '        allowedOrigins:',
-            normalizeOriginLine(MANAGER_ORIGIN),
-            '        credentials: true'
+            `${spaces(routesIndent)}cors:`,
+            `${spaces(propertyIndent)}allowedOrigins:`,
+            normalizeOriginLine(MANAGER_ORIGIN, originIndent),
+            `${spaces(propertyIndent)}credentials: true`
         )
         return lines.join('\n')
     }
 
-    let corsEnd = findSectionEnd(lines, corsIndex, 4)
-    let allowedIndex = -1
-    for (let index = corsIndex + 1; index < corsEnd; index += 1) {
-        if (/^ {8}allowedOrigins:/.test(lines[index])) {
-            allowedIndex = index
-            break
-        }
-    }
-
-    if (allowedIndex < 0) {
-        lines.splice(corsIndex + 1, 0, '        allowedOrigins:', normalizeOriginLine(MANAGER_ORIGIN))
-        corsEnd += 2
-        allowedIndex = corsIndex + 1
-    } else if (lines[allowedIndex].trim() !== 'allowedOrigins:') {
-        const existingOrigins = lines[allowedIndex].match(/https?:\/\/[^,\]\s'"]+/g) ?? []
-        const origins = [...new Set(existingOrigins.filter(origin => origin !== MANAGER_ORIGIN)), MANAGER_ORIGIN]
-        lines.splice(allowedIndex, 1, '        allowedOrigins:', ...origins.map(normalizeOriginLine))
-        corsEnd += origins.length
-    } else {
-        let allowedEnd = findSectionEnd(lines, allowedIndex, 8)
-        for (let index = allowedIndex + 1; index < allowedEnd; index += 1) {
-            if (/^ {12}-\s*['"]?\*['"]?\s*$/.test(lines[index])) {
-                lines.splice(index, 1)
-                index -= 1
-                allowedEnd -= 1
-                corsEnd -= 1
-            }
-        }
-        const hasManagerOrigin = lines.slice(allowedIndex + 1, allowedEnd).some(line => line.trim().replace(/^-\s*/, '') === MANAGER_ORIGIN)
-        if (!hasManagerOrigin) {
-            lines.splice(allowedIndex + 1, 0, normalizeOriginLine(MANAGER_ORIGIN))
-            corsEnd += 1
-        }
-    }
-
-    corsEnd = findSectionEnd(lines, corsIndex, 4)
-    const credentialsIndex = lines.findIndex((line, index) => index > corsIndex && index < corsEnd && /^ {8}credentials:/.test(line))
-    if (credentialsIndex < 0) {
-        const refreshedAllowedIndex = lines.findIndex(
-            (line, index) => index > corsIndex && index < corsEnd && /^ {8}allowedOrigins:/.test(line)
-        )
-        const allowedEnd = refreshedAllowedIndex < 0 ? corsIndex + 1 : findSectionEnd(lines, refreshedAllowedIndex, 8)
-        lines.splice(allowedEnd, 0, '        credentials: true')
-    } else {
-        lines[credentialsIndex] = '        credentials: true'
-    }
+    const corsIndent = leadingSpaces(lines[corsIndex])
+    const corsEnd = findSectionEnd(lines, corsIndex, corsIndent)
+    const indentUnit = inferNestedIndent(lines, corsIndex, corsIndent, corsEnd)
+    const propertyIndent = corsIndent + indentUnit
+    const originIndent = propertyIndent + indentUnit
+    const existingOrigins = extractOrigins(lines, corsIndex, corsEnd)
+    const origins = [MANAGER_ORIGIN, ...existingOrigins.filter(origin => origin !== MANAGER_ORIGIN)]
+    const replacement = [
+        `${spaces(corsIndent)}cors:`,
+        `${spaces(propertyIndent)}allowedOrigins:`,
+        ...origins.map(origin => normalizeOriginLine(origin, originIndent)),
+        `${spaces(propertyIndent)}credentials: true`
+    ]
+    lines.splice(corsIndex, corsEnd - corsIndex, ...replacement)
 
     return lines.join('\n')
 }

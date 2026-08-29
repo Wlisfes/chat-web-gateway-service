@@ -124,7 +124,7 @@ export function getCorsOptions(originsValue: unknown, credentialsValue: unknown)
         origin: allowAllOrigins ? true : configuredOrigins,
         credentials,
         methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'X-Request-Id', 'X-Requested-With'],
+        allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Platform', 'X-Request-Id', 'X-Requested-With'],
         exposedHeaders: ['X-Request-Id']
     }
 }

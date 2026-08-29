@@ -71,6 +71,34 @@ test('Nacos 迁移启用 credentials 时不会保留星号 Origin', () => {
     assert.match(migrated, / {8}credentials: true/)
 })
 
+test('Nacos 迁移兼容两空格缩进和行内 Origin 数组', () => {
+    const content = [
+        'server:',
+        '  port: 5000',
+        'gateway:',
+        '  cors:',
+        '    allowedOrigins: [',
+        '      "https://old.example.com"',
+        '    ]',
+        '    credentials: false',
+        '  routes:',
+        '    - id: account',
+        '      prefix: /api/account',
+        '      serviceName: chat-web-account-service',
+        '      fallbackUrl: http://chat-web-account-service:5010',
+        '      enabled: true',
+        'nacos:',
+        '  discovery:',
+        '    enabled: true'
+    ].join('\n')
+
+    const migrated = migrateManagerCors(content)
+
+    assert.match(migrated, /  cors:\n    allowedOrigins:\n      - https:\/\/chat\.lisfes\.cn\n      - https:\/\/old\.example\.com\n    credentials: true/)
+    assert.doesNotMatch(migrated, /allowedOrigins: \[/)
+    assert.match(migrated, /  routes:\n    - id: account/)
+})
+
 test('完整迁移同时维护路由前缀和 CORS', () => {
     const content = [
         'gateway:',

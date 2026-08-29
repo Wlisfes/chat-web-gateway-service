@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：修复管理端跨域预检
+
+- 影响机器：`chat-home-server` 与云端 Nacos。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；Nacos `chat-web-gateway-service.yaml`。
+- 变更内容：管理端页面 Origin 继续只在 Nacos `gateway.cors.allowedOrigins` 中开放 `https://chat.lisfes.cn`，并启用 `gateway.cors.credentials: true`；Gateway 固定允许管理端发送 `Platform` 请求头，修复登录和 Token 续期预检被浏览器拦截的问题。云端与本机 Nginx 不添加重复 CORS 响应头。
+- 机器侧操作：发布 Gateway 前幂等迁移云端 Nacos CORS 配置，再部署新镜像；无需修改 Manager、数据库、Redis、端口或 Docker 网络。
+- 验证命令：向 `https://chat-web.lisfes.cn/api/account/auth/token/login` 发送带 `Origin: https://chat.lisfes.cn`、`Access-Control-Request-Method: POST` 和 `Access-Control-Request-Headers: content-type,platform` 的 `OPTIONS` 请求，确认响应包含允许 Origin、凭据和 `Platform` 请求头。
+- 回滚方法：回滚 Gateway 到上一完整 Git SHA；仅在同时回滚 Manager 的跨域请求方式时才关闭 Nacos `credentials`，不删除 `chat.lisfes.cn` Origin，不回滚业务数据。
+
 ## 2026-08-29：管理端页面作为浏览器跨域来源
 
 - 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
