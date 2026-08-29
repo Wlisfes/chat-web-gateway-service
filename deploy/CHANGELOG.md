@@ -293,6 +293,14 @@ curl -fsS http://127.0.0.1:3999/api/account/health
 - 手动恢复时，将 `/opt/chat-web-gateway-service/compose.yml` 的 `IMAGE` 指向上一条已验证 SHA 后执行 `docker compose up -d --no-deps gateway-service`。
 - Nacos 路由配置异常时，恢复上一版 `chat-web-gateway-service.yaml`，不要删除 Account 服务容器。
 
+## 2026-08-29：开发数据库域名入口
+
+- 影响范围：云端 Nginx、WireGuard 到本机 MySQL 的 TCP 转发。
+- 变更内容：云端 Nginx 新增 `chat-mysql.lisfes.cn:13306` TCP 入口，经 WireGuard 转发到本机 Docker MySQL `10.66.0.2:3306`；开发电脑无需安装 WireGuard。
+- 安全要求：阿里云安全组仅允许受信任的开发电脑公网 IP 访问 `13306`，MySQL 使用独立开发账号，不使用 `root`。
+- 验证：`Test-NetConnection chat-mysql.lisfes.cn -Port 13306`，再使用 MySQL 客户端登录。
+- 回滚：删除云端 Nginx `stream` 中的 `13306` 服务并移除 Compose 的 `13306:13306` 端口映射。
+
 ## 记录模板
 
 ```markdown

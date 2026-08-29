@@ -34,6 +34,17 @@ Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 
 Dozzle 公网入口为 `https://logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。本机旧入口 `logs.lisfes.com` 仅用于本机直连兼容，可以保留；生产访问统一使用 `.cn` 域名。
 
+开发数据库入口为 `chat-mysql.lisfes.cn:13306`：域名解析到云服务器 `47.119.21.228`，云端 Nginx `stream` 将 TCP 连接经 WireGuard 转发到本机 `10.66.0.2:3306` 的 Docker MySQL。开发电脑无需安装 WireGuard，项目中的数据库主机填写 `chat-mysql.lisfes.cn`、端口填写 `13306`。阿里云安全组必须仅向受信任的开发电脑公网 IP 开放 TCP `13306`，禁止向全网开放；MySQL 使用独立开发账号，不使用 `root`。
+
+验证云端入口：
+
+```powershell
+Test-NetConnection chat-mysql.lisfes.cn -Port 13306
+mysql -h chat-mysql.lisfes.cn -P 13306 -u chat_dev -p
+```
+
+`13306` 是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2:3306` 的连通性及本机防火墙。
+
 日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
 
 ```powershell
