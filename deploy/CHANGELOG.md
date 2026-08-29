@@ -301,6 +301,11 @@ curl -fsS http://127.0.0.1:3999/api/account/health
 - 验证：`Test-NetConnection chat-mysql.lisfes.cn -Port 13306`，再使用 MySQL 客户端登录。
 - 回滚：删除云端 Nginx `stream` 中的 `13306` 服务并移除 Compose 的 `13306:13306` 端口映射。
 
+## 2026-08-29：开发数据库账号命名
+
+- 变更内容：远程开发数据库账号统一使用 `chat`，保留原有开发密码和业务数据库权限，并移除 `chat_dev` 账号。
+- 验证：通过 `chat-mysql.lisfes.cn:13306` 使用 `chat` 账号执行 `SELECT 1` 成功。
+
 ## 记录模板
 
 ```markdown

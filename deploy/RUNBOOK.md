@@ -40,7 +40,7 @@ Dozzle 公网入口为 `https://logs.lisfes.cn`：云端 Nginx 只负责 TLS 和
 
 ```powershell
 Test-NetConnection chat-mysql.lisfes.cn -Port 13306
-mysql -h chat-mysql.lisfes.cn -P 13306 -u chat_dev -p
+mysql -h chat-mysql.lisfes.cn -P 13306 -u chat -p
 ```
 
 `13306` 是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2:3306` 的连通性及本机防火墙。
