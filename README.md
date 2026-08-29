@@ -19,15 +19,15 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 
 ## 路由规则
 
-| 客户端地址                        | 下游服务地址  |
-| --------------------------------- | ------------- |
-| `GET /api/account/health`         | `GET /health` |
-| `/api/account/users/**`           | `/users/**`   |
-| `GET /api/finance/health`         | `GET /health` |
-| `/api/finance/brand/**`           | `/brand/**`   |
-| `GET /api/crm/health`             | `GET /health` |
-| `/api/crm/sms/**`                 | `/sms/**`     |
-| `GET /api/skyline/health/live`    | `GET /health/live` |
+| 客户端地址                     | 下游服务地址       |
+| ------------------------------ | ------------------ |
+| `GET /api/account/health`      | `GET /health`      |
+| `/api/account/users/**`        | `/users/**`        |
+| `GET /api/finance/health`      | `GET /health`      |
+| `/api/finance/brand/**`        | `/brand/**`        |
+| `GET /api/crm/health`          | `GET /health`      |
+| `/api/crm/sms/**`              | `/sms/**`          |
+| `GET /api/skyline/health/live` | `GET /health/live` |
 
 账号服务仍然负责业务鉴权、字段校验和数据访问。网关后续可以增加 JWT 的通用身份解析，但下游服务不能因此取消权限校验。
 
@@ -84,9 +84,10 @@ gateway:
         windowMs: 60000
     cors:
         allowedOrigins:
+            - https://chat.lisfes.cn
             - https://admin.example.com
             - https://chat.example.com
-        credentials: false
+        credentials: true
     routes:
         - id: account
           prefix: /api/account
@@ -118,7 +119,7 @@ nacos:
         serviceName: chat-web-gateway-service
 ```
 
-跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。
+跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，必须把该 Origin 加入白名单。
 
 路由和跨域配置更新后会由 Nacos 订阅实时生效。`server.port` 和网关注册 IP/端口涉及监听地址，修改后需要重启服务。
 

@@ -11,25 +11,25 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 ## 当前基线
 
-| 项目                 | 值                                                 |
-| -------------------- | -------------------------------------------------- |
-| 容器                 | `chat-web-gateway-service`                         |
-| 访问地址             | `http://127.0.0.1:5000`                            |
-| 健康检查             | `http://127.0.0.1:5000/health`                     |
-| Account 转发检查     | `http://127.0.0.1:5000/api/account/health`         |
-| Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`         |
-| CRM 转发检查         | `http://127.0.0.1:5000/api/crm/health`             |
-| Skyline 转发检查     | `http://127.0.0.1:5000/api/skyline/health/live`    |
-| 公网入口检查         | `https://chat-web.lisfes.cn/health`                |
-| 部署目录             | `/opt/chat-web-gateway-service`                    |
-| Docker 网络          | `chat-web-infrastructure`                          |
-| Nacos Data ID        | `chat-web-gateway-service.yaml`                    |
-| Nacos Group          | `DEFAULT_GROUP`                                    |
-| Nacos Namespace 名称 | `chat-web-service`                                 |
-| Nacos 服务名         | `chat-web-gateway-service`                         |
-| Nacos 公网入口       | `https://chat-web-nacos.lisfes.cn/nacos/`         |
-| 部署主机             | `chat-home-server`                                 |
-| Runner 标签          | `chat-home-server`                                 |
+| 项目                 | 值                                              |
+| -------------------- | ----------------------------------------------- |
+| 容器                 | `chat-web-gateway-service`                      |
+| 访问地址             | `http://127.0.0.1:5000`                         |
+| 健康检查             | `http://127.0.0.1:5000/health`                  |
+| Account 转发检查     | `http://127.0.0.1:5000/api/account/health`      |
+| Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`      |
+| CRM 转发检查         | `http://127.0.0.1:5000/api/crm/health`          |
+| Skyline 转发检查     | `http://127.0.0.1:5000/api/skyline/health/live` |
+| 公网入口检查         | `https://chat-web.lisfes.cn/health`             |
+| 部署目录             | `/opt/chat-web-gateway-service`                 |
+| Docker 网络          | `chat-web-infrastructure`                       |
+| Nacos Data ID        | `chat-web-gateway-service.yaml`                 |
+| Nacos Group          | `DEFAULT_GROUP`                                 |
+| Nacos Namespace 名称 | `chat-web-service`                              |
+| Nacos 服务名         | `chat-web-gateway-service`                      |
+| Nacos 公网入口       | `https://chat-web-nacos.lisfes.cn/nacos/`       |
+| 部署主机             | `chat-home-server`                              |
+| Runner 标签          | `chat-home-server`                              |
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
@@ -37,14 +37,14 @@ Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负
 
 基础设施公网入口统一使用 Docker 容器名对应的域名。域名均解析到云服务器 `47.119.21.228`，云端 Nginx 通过 WireGuard 转发到本机 Docker：
 
-| 容器 | 域名 | 协议/端口 |
-| ---- | ---- | --------- |
-| `chat-web-mysql` | `chat-web-mysql.lisfes.cn` | MySQL TCP `3306` |
-| `chat-web-nacos` | `chat-web-nacos.lisfes.cn` | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848` |
-| `chat-web-dozzle` | `chat-web-dozzle.lisfes.cn` | HTTPS `443` |
-| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443` |
-| `chat-web-redis` | `chat-web-redis.lisfes.cn` | Redis TCP `6379` |
-| `chat-web-kafka` | `chat-web-kafka.lisfes.cn` | Kafka TCP `9092` |
+| 容器                | 域名                          | 协议/端口                                           |
+| ------------------- | ----------------------------- | --------------------------------------------------- |
+| `chat-web-mysql`    | `chat-web-mysql.lisfes.cn`    | MySQL TCP `3306`                                    |
+| `chat-web-nacos`    | `chat-web-nacos.lisfes.cn`    | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848` |
+| `chat-web-dozzle`   | `chat-web-dozzle.lisfes.cn`   | HTTPS `443`                                         |
+| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443`                 |
+| `chat-web-redis`    | `chat-web-redis.lisfes.cn`    | Redis TCP `6379`                                    |
+| `chat-web-kafka`    | `chat-web-kafka.lisfes.cn`    | Kafka TCP `9092`                                    |
 
 开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口，禁止向全网开放。
 
@@ -137,13 +137,13 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 
 ## 常见故障
 
-| 现象                    | 原因                                  | 处理                                                       |
-| ----------------------- | ------------------------------------- | ---------------------------------------------------------- |
-| 部署一直 Queued         | `chat-home-server` 的 Gateway Runner 离线 | 启动 WSL 并重启 Gateway Runner                          |
-| 5000 拒绝连接           | Gateway 未部署或未通过健康检查        | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
-| Nacos 配置不存在        | Namespace ID、Data ID 或 Group 不一致 | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`      |
-| Account 转发 502        | Account 容器不可达且 Nacos 无健康实例 | 检查 Account 健康和 Docker 网络                            |
-| `healthyInstances: 0`   | Account 尚未注册到 Nacos              | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
+| 现象                  | 原因                                      | 处理                                                       |
+| --------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| 部署一直 Queued       | `chat-home-server` 的 Gateway Runner 离线 | 启动 WSL 并重启 Gateway Runner                             |
+| 5000 拒绝连接         | Gateway 未部署或未通过健康检查            | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
+| Nacos 配置不存在      | Namespace ID、Data ID 或 Group 不一致     | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`      |
+| Account 转发 502      | Account 容器不可达且 Nacos 无健康实例     | 检查 Account 健康和 Docker 网络                            |
+| `healthyInstances: 0` | Account 尚未注册到 Nacos                  | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
 
 ## 恢复顺序
 

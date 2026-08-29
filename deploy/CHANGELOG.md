@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：管理端页面作为浏览器跨域来源
+
+- 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
+- 关联版本：Gateway 本次配置提交；Nacos `chat-web-gateway-service.yaml`。
+- 变更内容：浏览器页面来源固定为 `https://chat.lisfes.cn`，API 入口固定为 `https://chat-web.lisfes.cn`；Gateway 的跨域白名单需要包含页面 Origin，并保持 `credentials: true` 以支持登录和 Token 续期。
+- 机器侧操作：更新 Nacos `gateway.cors.allowedOrigins` 和 `gateway.cors.credentials`，再发布 Gateway 及 Manager。
+- 验证命令：访问 `https://chat.lisfes.cn/health`、`https://chat-web.lisfes.cn/health`，并在浏览器确认登录与续期请求不再被 CORS 拦截。
+- 回滚方法：恢复上一版 Nacos CORS 配置并回滚 Gateway 镜像；页面静态资源与业务数据不回滚。
+
 ## 2026-08-29：基础设施域名统一
 
 - 基础设施公网域名统一按 Docker 容器名命名：`chat-web-mysql.lisfes.cn`、`chat-web-nacos.lisfes.cn`、`chat-web-dozzle.lisfes.cn`、`chat-web-rabbitmq.lisfes.cn`、`chat-web-redis.lisfes.cn`、`chat-web-kafka.lisfes.cn`。
