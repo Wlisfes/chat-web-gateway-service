@@ -57,7 +57,7 @@ yarn dev
 本地开发同样连接云端 Nacos，当前暂时使用正式 Data ID；根目录 `.env` 只填写以下 Nacos 参数：
 
 ```dotenv
-NACOS_SERVER=chat-nacos.lisfes.cn:8848
+NACOS_SERVER=chat-web-nacos.lisfes.cn:8848
 NACOS_NAMESPACE=replace-with-nacos-namespace-id
 NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
 ```

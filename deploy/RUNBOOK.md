@@ -27,29 +27,46 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | Nacos Group          | `DEFAULT_GROUP`                                    |
 | Nacos Namespace 名称 | `chat-web-service`                                 |
 | Nacos 服务名         | `chat-web-gateway-service`                         |
-| Nacos 公网入口       | `https://chat-nacos.lisfes.cn/nacos/`             |
+| Nacos 公网入口       | `https://chat-web-nacos.lisfes.cn/nacos/`         |
 | 部署主机             | `chat-home-server`                                 |
 | Runner 标签          | `chat-home-server`                                 |
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
-Dozzle 公网入口为 `https://chat-logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。公网旧域名已移除；`logs.lisfes.com` 仅保留为本机直连入口。
+Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。`logs.lisfes.com` 仅保留为本机直连兼容入口，不作为公网域名。
 
-开发数据库入口为 `chat-mysql.lisfes.cn:13306`：域名解析到云服务器 `47.119.21.228`，云端 Nginx `stream` 将 TCP 连接经 WireGuard 转发到本机 `10.66.0.2:3306` 的 Docker MySQL。开发电脑无需安装 WireGuard，项目中的数据库主机填写 `chat-mysql.lisfes.cn`、端口填写 `13306`。阿里云安全组必须仅向受信任的开发电脑公网 IP 开放 TCP `13306`，禁止向全网开放；MySQL 使用独立开发账号，不使用 `root`。
+基础设施公网入口统一使用 Docker 容器名对应的域名。域名均解析到云服务器 `47.119.21.228`，云端 Nginx 通过 WireGuard 转发到本机 Docker：
+
+| 容器 | 域名 | 协议/端口 |
+| ---- | ---- | --------- |
+| `chat-web-mysql` | `chat-web-mysql.lisfes.cn` | MySQL TCP `3306` |
+| `chat-web-nacos` | `chat-web-nacos.lisfes.cn` | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848` |
+| `chat-web-dozzle` | `chat-web-dozzle.lisfes.cn` | HTTPS `443` |
+| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443` |
+| `chat-web-redis` | `chat-web-redis.lisfes.cn` | Redis TCP `6379` |
+| `chat-web-kafka` | `chat-web-kafka.lisfes.cn` | Kafka TCP `9092` |
+
+开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口，禁止向全网开放。
 
 验证云端入口：
 
 ```powershell
-Test-NetConnection chat-mysql.lisfes.cn -Port 13306
-mysql -h chat-mysql.lisfes.cn -P 13306 -u chat -p
+Test-NetConnection chat-web-mysql.lisfes.cn -Port 3306
+mysql -h chat-web-mysql.lisfes.cn -P 3306 -u chat -p
 ```
 
-`13306` 是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2:3306` 的连通性及本机防火墙。
+这些基础设施入口都是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2` 的连通性及本机防火墙。RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`，Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`。
+
+本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。首次配置或端口出现 `502` 时，请以管理员身份运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\allow-wireguard-infrastructure.ps1
+```
 
 日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
 
 ```powershell
-curl -k -I -H "Accept-Encoding: gzip" https://chat-logs.lisfes.cn/assets/main-PgmtVYCl.js
+curl -k -I -H "Accept-Encoding: gzip" https://chat-web-dozzle.lisfes.cn/assets/main-PgmtVYCl.js
 docker exec chat-web-nginx nginx -t
 docker exec chat-web-nginx nginx -s reload
 ```

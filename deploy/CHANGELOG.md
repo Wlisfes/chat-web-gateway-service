@@ -1,5 +1,11 @@
 # 部署变更记录
 
+## 2026-08-29：基础设施域名统一
+
+- 基础设施公网域名统一按 Docker 容器名命名：`chat-web-mysql.lisfes.cn`、`chat-web-nacos.lisfes.cn`、`chat-web-dozzle.lisfes.cn`、`chat-web-rabbitmq.lisfes.cn`、`chat-web-redis.lisfes.cn`、`chat-web-kafka.lisfes.cn`。
+- 云端 Nginx 的 TCP 入口使用容器对应端口 `3306`、`6379`、`5672`、`9092`；Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`，Dozzle 使用 `https://chat-web-dozzle.lisfes.cn/`，RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`。
+- RabbitMQ 管理台改为经本机 Nginx `80` 端口转发到 `chat-web-rabbitmq:15672`，避免 WireGuard 直连 Windows 发布端口时被主机防火墙拦截。旧域名不再作为公网入口。
+
 ## 2026-08-29：统一公网域名前缀
 
 - 影响范围：云端 Nginx、本机网关 Nginx、Gateway 与 Dozzle 公网入口、Nacos 公网入口。
