@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：新增云端 Nginx 到本机 Dozzle 的日志入口
+
+- 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；日志域名 `logs.lisfes.cn`。
+- 变更内容：云端 Nginx 终止 `logs.lisfes.cn` TLS，经 WireGuard `10.66.0.2:80` 转发到本机 Nginx，再由本机转发到 `chat-web-dozzle:8080`；Dozzle 不在云端安装或保存。Dozzle 静态资源启用 gzip 和一年 immutable 缓存，实时日志接口保留 WebSocket 长连接和关闭缓冲。
+- 机器侧操作：云端签发 `/etc/letsencrypt/live/logs.lisfes.cn` 证书并更新 `/opt/chat-web-cloud/nginx.conf`；部署流水线同步 `deploy/dozzle-ingress.conf` 到本机 `chat-web-nginx` 并 reload。原 `logs.lisfes.com` 继续作为本机直连兼容入口，不作为公网入口。
+- 验证命令：访问 `https://logs.lisfes.cn/` 应跳转 Dozzle 登录页；检查 `curl -k -I -H 'Accept-Encoding: gzip' https://logs.lisfes.cn/assets/main-PgmtVYCl.js` 返回 `Content-Encoding: gzip` 和 `Cache-Control: public, max-age=31536000, immutable`；执行 `docker exec chat-web-nginx nginx -t`。
+- 回滚方法：恢复云端 Nginx 备份并 reload，删除本机 `logs.lisfes.cn` Server 配置后 reload；Dozzle 容器、Docker 日志和 `logs.lisfes.com` 兼容入口不受影响。
+
 ## 2026-08-29：优化 Knife4j 文档页首次加载
 
 - 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
