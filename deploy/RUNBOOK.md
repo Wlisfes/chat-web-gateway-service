@@ -18,6 +18,8 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | 健康检查             | `http://127.0.0.1:5000/health`                     |
 | Account 转发检查     | `http://127.0.0.1:5000/api/account/health`         |
 | Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`         |
+| CRM 转发检查         | `http://127.0.0.1:5000/api/crm/health`             |
+| Skyline 转发检查     | `http://127.0.0.1:5000/api/skyline/health/live`    |
 | 部署目录             | `/opt/chat-web-gateway-service`                    |
 | Docker 网络          | `chat-web-infrastructure`                          |
 | Nacos Data ID        | `chat-web-gateway-service.yaml`                    |
@@ -46,6 +48,8 @@ docker logs --tail 200 chat-web-gateway-service
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/account/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/finance/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/crm/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/skyline/health/live
 ```
 
 日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/account/consumer/**` 转发。
@@ -59,7 +63,7 @@ docker network inspect chat-web-infrastructure
 docker logs --tail 100 chat-web-nacos
 ```
 
-Gateway、Account、Finance、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，Account 和 Finance 后备地址分别为 `http://chat-web-account-service:5010`、`http://chat-web-finance-service:5030`。
+Gateway、Account、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5010`、`5020`、`5030`、`5040` 端口。
 
 ### 3. 检查 chat-home-server Runner
 

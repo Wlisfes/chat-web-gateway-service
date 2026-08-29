@@ -8,6 +8,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 - `/api/account/**` 转发到 `chat-web-account-service`，转发时移除 `/api/account` 服务前缀。
 - `/api/finance/**` 优先转发到 `chat-web-finance-service`，转发时移除 `/api/finance` 前缀。
 - `/api/crm/**` 转发到 `chat-web-crm-service`，转发时移除 `/api/crm` 前缀。
+- `/api/skyline/**` 转发到 `chat-web-skyline-service`，转发时移除 `/api/skyline` 前缀。
 - 使用 Nacos 发现健康服务实例，并在多个实例之间轮询。
 - Nacos 不可用或没有健康实例时，使用各路由对应的 `*_SERVICE_URL` 后备地址。
 - 网关自身可注册到 Nacos，并在退出时注销临时实例。
@@ -26,6 +27,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 | `/api/finance/brand/**`           | `/brand/**`   |
 | `GET /api/crm/health`             | `GET /health` |
 | `/api/crm/sms/**`                 | `/sms/**`     |
+| `GET /api/skyline/health/live`    | `GET /health/live` |
 
 账号服务仍然负责业务鉴权、字段校验和数据访问。网关后续可以增加 JWT 的通用身份解析，但下游服务不能因此取消权限校验。
 
@@ -46,6 +48,7 @@ yarn dev
 - 账号服务：`http://127.0.0.1:5000/api/account/**`
 - 财务服务：`http://127.0.0.1:5000/api/finance/**`
 - CRM 服务：`http://127.0.0.1:5000/api/crm/**`
+- Skyline 服务：`http://127.0.0.1:5000/api/skyline/**`
 
 根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`。
 
@@ -97,6 +100,11 @@ gateway:
           prefix: /api/crm
           serviceName: chat-web-crm-service
           fallbackUrl: http://chat-web-crm-service:5020
+          enabled: true
+        - id: skyline
+          prefix: /api/skyline
+          serviceName: chat-web-skyline-service
+          fallbackUrl: http://chat-web-skyline-service:5040
           enabled: true
 nacos:
     discovery:
