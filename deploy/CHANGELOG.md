@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：统一公网域名前缀
+
+- 影响范围：云端 Nginx、本机网关 Nginx、Gateway 与 Dozzle 公网入口、Nacos 公网入口。
+- 关联版本：Gateway 本次配置提交；云端 Nginx `/opt/chat-web-cloud/nginx.conf`。
+- 变更内容：正式公网域名统一增加 `chat-` 前缀：`chat-web.lisfes.cn`（Gateway）、`chat-logs.lisfes.cn`（Dozzle）、`chat-nacos.lisfes.cn`（Nacos）。旧域名 `web.lisfes.cn`、`logs.lisfes.cn`、`nacos.lisfes.cn` 暂时保留为兼容入口；证书 SAN、云端转发和本机 `server_name` 均同步覆盖新旧域名。
+- 机器侧操作：同步云端 Nginx 配置并 reload；同步 `web-gateway.conf`、`dozzle.conf` 到本机 `chat-web-nginx` 并 reload。Dozzle 和 Nacos 仍只运行在原主机/云端，不新增容器。
+- 验证：`curl -k -I https://chat-web.lisfes.cn/health`、`curl -k -I https://chat-logs.lisfes.cn/`、`curl -k -I https://chat-nacos.lisfes.cn/nacos/`；执行两端 `nginx -t` 并确认新域名证书无不匹配。
+- 回滚：恢复云端 Nginx 备份和本机两个入口配置后 reload；旧域名兼容入口无需额外处理。
+
 ## 2026-08-29：新增云端 Nginx 到本机 Dozzle 的日志入口
 
 - 影响机器：`chat-home-server` 与云端 `47.119.21.228`。

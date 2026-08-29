@@ -20,19 +20,20 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`         |
 | CRM 转发检查         | `http://127.0.0.1:5000/api/crm/health`             |
 | Skyline 转发检查     | `http://127.0.0.1:5000/api/skyline/health/live`    |
-| 公网入口检查         | `https://web.lisfes.cn/health`                     |
+| 公网入口检查         | `https://chat-web.lisfes.cn/health`                |
 | 部署目录             | `/opt/chat-web-gateway-service`                    |
 | Docker 网络          | `chat-web-infrastructure`                          |
 | Nacos Data ID        | `chat-web-gateway-service.yaml`                    |
 | Nacos Group          | `DEFAULT_GROUP`                                    |
 | Nacos Namespace 名称 | `chat-web-service`                                 |
 | Nacos 服务名         | `chat-web-gateway-service`                         |
+| Nacos 公网入口       | `https://chat-nacos.lisfes.cn/nacos/`             |
 | 部署主机             | `chat-home-server`                                 |
 | Runner 标签          | `chat-home-server`                                 |
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
-Dozzle 公网入口为 `https://logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。本机旧入口 `logs.lisfes.com` 仅用于本机直连兼容，可以保留；生产访问统一使用 `.cn` 域名。
+Dozzle 公网入口为 `https://chat-logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。旧域名 `logs.lisfes.cn` 和本机入口 `logs.lisfes.com` 暂时保留为兼容入口；生产访问统一使用 `chat-logs.lisfes.cn`。
 
 开发数据库入口为 `chat-mysql.lisfes.cn:13306`：域名解析到云服务器 `47.119.21.228`，云端 Nginx `stream` 将 TCP 连接经 WireGuard 转发到本机 `10.66.0.2:3306` 的 Docker MySQL。开发电脑无需安装 WireGuard，项目中的数据库主机填写 `chat-mysql.lisfes.cn`、端口填写 `13306`。阿里云安全组必须仅向受信任的开发电脑公网 IP 开放 TCP `13306`，禁止向全网开放；MySQL 使用独立开发账号，不使用 `root`。
 
@@ -48,7 +49,7 @@ mysql -h chat-mysql.lisfes.cn -P 13306 -u chat -p
 日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
 
 ```powershell
-curl -k -I -H "Accept-Encoding: gzip" https://logs.lisfes.cn/assets/main-PgmtVYCl.js
+curl -k -I -H "Accept-Encoding: gzip" https://chat-logs.lisfes.cn/assets/main-PgmtVYCl.js
 docker exec chat-web-nginx nginx -t
 docker exec chat-web-nginx nginx -s reload
 ```
@@ -66,7 +67,7 @@ Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Fi
 Knife4j 的 `doc.html` 只加载当前页面需要的脚本，其他 chunk 按需加载。本机 Nginx 对 hash 静态资源启用 gzip 和一年 immutable 缓存；首次部署后可用以下命令确认压缩和缓存头已经生效：
 
 ```powershell
-curl -k -I -H "Accept-Encoding: gzip" https://web.lisfes.cn/assets/js/chunk-vendors.8e9185cb.js
+curl -k -I -H "Accept-Encoding: gzip" https://chat-web.lisfes.cn/assets/js/chunk-vendors.8e9185cb.js
 ```
 
 响应应包含 `Content-Encoding: gzip` 与 `Cache-Control: public, max-age=31536000, immutable`。如果仍然看到完整未压缩的 `Content-Length`，先确认 Gateway 流水线是否已同步 `/etc/nginx/conf.d/web-gateway.conf` 并执行 `docker exec chat-web-nginx nginx -t`、`docker exec chat-web-nginx nginx -s reload`；云端 Nginx 只负责 TLS 和 WireGuard 转发。
@@ -84,8 +85,8 @@ Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/account/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/finance/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/crm/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/skyline/health/live
-curl -kfsS https://web.lisfes.cn/health
-curl -kfsS https://web.lisfes.cn/api/skyline/health/live
+curl -kfsS https://chat-web.lisfes.cn/health
+curl -kfsS https://chat-web.lisfes.cn/api/skyline/health/live
 ```
 
 日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/account/consumer/**` 转发。
@@ -99,7 +100,7 @@ docker network inspect chat-web-infrastructure
 docker logs --tail 100 chat-web-nacos
 ```
 
-Gateway、Account、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5010`、`5020`、`5030`、`5040` 端口。公网 `web.lisfes.cn` 由云端 Nginx 经 WireGuard 转发到本机 `10.66.0.2:80`，本机入口再转发到 Gateway `5000`。
+Gateway、Account、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5010`、`5020`、`5030`、`5040` 端口。公网 `chat-web.lisfes.cn` 由云端 Nginx 经 WireGuard 转发到本机 `10.66.0.2:80`，本机入口再转发到 Gateway `5000`；旧域名 `web.lisfes.cn` 暂时保留兼容。
 
 ### 3. 检查 chat-home-server Runner
 
