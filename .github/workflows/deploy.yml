@@ -130,6 +130,16 @@ jobs:
                   cd "$DEPLOY_PATH"
                   ./deploy.sh "$IMAGE" compose.yml
 
+            - name: 同步本机 web 网关入口
+              shell: bash
+              run: |
+                  set -eu
+                  nginx_container=chat-web-nginx
+                  docker inspect "$nginx_container" >/dev/null
+                  docker cp deploy/web-gateway-ingress.conf "$nginx_container:/etc/nginx/conf.d/web-gateway.conf"
+                  docker exec "$nginx_container" nginx -t
+                  docker exec "$nginx_container" nginx -s reload
+
             - name: Verify service routes
               shell: bash
               run: |
