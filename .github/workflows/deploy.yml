@@ -114,7 +114,7 @@ jobs:
                   set -eu
                   network=$(sed -n 's/^DOCKER_NETWORK=//p' "$DEPLOY_PATH/.env" | tail -n 1 | tr -d '\r')
                   network=${network:-chat-web-infrastructure}
-                  docker run --rm \
+                  docker run --rm -i \
                     --network "$network" \
                     --env-file "$DEPLOY_PATH/.env" \
                     --env RUN_NACOS_ROUTE_MIGRATION=1 \

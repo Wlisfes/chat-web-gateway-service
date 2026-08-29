@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：修复 Nacos 迁移容器输入流
+
+- 影响机器：`chat-home-server` 与云端 Nacos。
+- 关联版本：Gateway 部署工作流；Nacos `chat-web-gateway-service.yaml`。
+- 变更内容：Nacos 路由和跨域迁移脚本通过临时 Node 容器的标准输入执行，补充交互输入保持参数，避免容器启动后立即关闭导致部署无法更新；跨域白名单仍只开放 `https://chat.lisfes.cn`，API 入口仍为 `https://chat-web.lisfes.cn`。
+- 机器侧操作：重新运行 Gateway 主分支部署流水线；流水线会幂等迁移 Nacos 配置后再重建网关容器。
+- 验证命令：执行 `yarn format:check && yarn tsc -p tsconfig.json --noEmit && yarn build && yarn test`；部署后发送管理端 CORS 预检并确认允许 Origin、凭据和 `Platform` 请求头。
+- 回滚方法：恢复上一条健康 Gateway 完整 Git SHA；Nacos 配置保持当前白名单，不回滚业务数据。
+
 ## 2026-08-30：修复管理端跨域预检
 
 - 影响机器：`chat-home-server` 与云端 Nacos。
