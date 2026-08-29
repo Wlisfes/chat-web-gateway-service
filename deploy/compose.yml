@@ -17,12 +17,10 @@ services:
             - .env
         environment:
             NODE_ENV: production
-            PORT: 3999
+            PORT: 5000
             TZ: ${TZ:-Asia/Shanghai}
-            DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-production-home}
-            NACOS_REGISTER_PORT: ${NACOS_REGISTER_PORT:-3999}
-        ports:
-            - '${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-3999}:3999'
+        expose:
+            - '5000'
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         networks:

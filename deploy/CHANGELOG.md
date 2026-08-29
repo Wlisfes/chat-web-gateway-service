@@ -1,5 +1,32 @@
 # 部署变更记录
 
+## 2026-08-29：移除本地 Nacos 路由模板
+
+- 影响机器：`chat-home-server`；本次仅调整仓库文件，不触发镜像构建或线上部署。
+- 关联版本：Gateway `developer` 分支工作区。
+- 变更内容：删除 `config/nacos/chat-web-gateway-service.yaml`。Gateway 运行时只从云端 Nacos Data ID `chat-web-gateway-service.yaml` 加载路由、跨域、限流和服务发现配置。
+- 机器侧操作：无需修改 Nacos 配置或现有容器；后续更新路由直接在 Nacos 控制台操作。
+- 验证命令：确认 `rg` 全仓库无代码读取该文件，并执行 `yarn build && yarn test`。
+- 回滚方法：从上一版本恢复该参考文件即可，不影响运行中的 Nacos 配置和服务实例。
+
+## 2026-08-29：统一网关监听端口为 5000
+
+- 影响机器：`chat-home-server`；Company Runner 当前离线，本次不等待其部署结果。
+- 关联版本：Gateway 本次 `developer` 配置提交；未合并 `main`，不触发镜像构建或线上部署。
+- 变更内容：Gateway 容器、Nacos 注册、健康检查和本地文档端口由 `3999` 统一为 `5000`；Account、Finance、CRM 后备地址同步为 `5010`、`5030`、`5020`。
+- 机器侧操作：下次部署重新创建 Gateway 容器，使 `PORT=5000` 生效；Nacos 路由前缀、域名、Docker 网络和限流配置不变。
+- 验证命令：检查 `docker inspect` 中的 `PORT=5000`、访问 `/health/live` 以及 `/api/account/health`、`/api/finance/health`、`/api/crm/health`。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA，并将 Nacos `server.port`、注册端口和后备地址恢复为旧值。
+
+## 2026-08-29：统一环境示例并补充 Nacos 鉴权迁移
+
+- 影响机器：`chat-home-server`；Company Runner 当前离线，本次不等待其部署结果。
+- 关联版本：Gateway 本次 `developer` 配置提交；未合并 `main`，不触发镜像构建或线上部署。
+- 变更内容：根目录与部署目录 `.env.example` 统一只描述启动和 Nacos 参数，网关路由、限流和跨域配置继续由云端 Nacos 管理；路由迁移脚本增加 Nacos 登录令牌读取和发布支持。
+- 机器侧操作：无需修改 Nacos 路由、端口或 Docker 网络；确认部署主机 `.env` 保留 Nacos 用户名和密码，真实密钥不得提交仓库。
+- 验证命令：执行 `yarn build`；运行路由迁移脚本读取鉴权 Nacos 配置，并检查 `/health/live` 及三条代理路由。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA；Nacos 路由、业务服务与数据均不回滚。
+
 ## 2026-08-29：部署拓扑收敛到 chat-home-server
 
 - 影响机器：仅 `chat-home-server`；原另一台部署机器已废弃并下线，不再创建部署任务。

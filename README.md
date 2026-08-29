@@ -39,30 +39,22 @@ yarn dev
 
 默认访问地址：
 
-- Knife4j 聚合文档：`http://127.0.0.1:3999/`（自动跳转到 `/doc.html`）
-- 网关信息：`http://127.0.0.1:3999/gateway`
-- 健康检查：`http://127.0.0.1:3999/health`
-- 网关 Swagger：`http://127.0.0.1:3999/api/swagger`
-- 账号服务：`http://127.0.0.1:3999/api/account/**`
-- 财务服务：`http://127.0.0.1:3999/api/finance/**`
-- CRM 服务：`http://127.0.0.1:3999/api/crm/**`
+- Knife4j 聚合文档：`http://127.0.0.1:5000/`（自动跳转到 `/doc.html`）
+- 网关信息：`http://127.0.0.1:5000/gateway`
+- 健康检查：`http://127.0.0.1:5000/health`
+- 网关 Swagger：`http://127.0.0.1:5000/api/swagger`
+- 账号服务：`http://127.0.0.1:5000/api/account/**`
+- 财务服务：`http://127.0.0.1:5000/api/finance/**`
+- CRM 服务：`http://127.0.0.1:5000/api/crm/**`
 
-根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`；仓库中的同名 YAML 仅作结构参考。
+根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`。
 
-如果本地没有 Nacos，可在启动命令中临时关闭配置中心和服务发现并指定后备地址，不写入根目录 `.env.example`：
-
-```dotenv
-NACOS_CONFIG_ENABLED=false
-NACOS_DISCOVERY_ENABLED=false
-ACCOUNT_SERVICE_URL=http://127.0.0.1:3000
-FINANCE_SERVICE_URL=http://127.0.0.1:3010
-```
-
-启用 Nacos 时使用以下连接配置，Data ID 和 Group 使用代码默认值：
+本地开发同样连接云端 Nacos，当前暂时使用正式 Data ID；根目录 `.env` 只填写以下 Nacos 参数：
 
 ```dotenv
-NACOS_SERVER=127.0.0.1:8848
+NACOS_SERVER=10.66.0.1:8848
 NACOS_NAMESPACE=replace-with-nacos-namespace-id
+NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
 ```
 
 ## 健康检查
@@ -75,7 +67,7 @@ NACOS_NAMESPACE=replace-with-nacos-namespace-id
 
 ## Nacos 网关配置
 
-仓库中的 `config/nacos/chat-web-gateway-service.yaml` 是配置结构参考，当前 Nacos 配置内容与其保持一致。所有对外服务都在 `gateway.routes` 中注册，不再为每个服务修改网关源码。
+Nacos 配置内容以远端 `chat-web-gateway-service.yaml` 为唯一运行来源。所有对外服务都在 `gateway.routes` 中注册，不再为每个服务修改网关源码。
 
 ```yaml
 gateway:
@@ -94,17 +86,17 @@ gateway:
         - id: account
           prefix: /api/account
           serviceName: chat-web-account-service
-          fallbackUrl: http://chat-web-account-service:3000
+          fallbackUrl: http://chat-web-account-service:5010
           enabled: true
         - id: finance
           prefix: /api/finance
           serviceName: chat-web-finance-service
-          fallbackUrl: http://chat-web-finance-service:3010
+          fallbackUrl: http://chat-web-finance-service:5030
           enabled: true
         - id: crm
           prefix: /api/crm
           serviceName: chat-web-crm-service
-          fallbackUrl: http://chat-web-crm-service:3020
+          fallbackUrl: http://chat-web-crm-service:5020
           enabled: true
 nacos:
     discovery:

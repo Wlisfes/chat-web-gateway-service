@@ -2,17 +2,17 @@ import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-option
 import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
 
 export function validateEnvironment(environment: Record<string, unknown>): Record<string, unknown> {
-    parsePort(environment.PORT, 3999, 'PORT')
-    parsePort(environment.NACOS_REGISTER_PORT ?? environment.PORT, 3999, 'NACOS_REGISTER_PORT')
+    parsePort(environment.PORT, 5000, 'PORT')
+    parsePort(environment.NACOS_REGISTER_PORT ?? environment.PORT, 5000, 'NACOS_REGISTER_PORT')
     parsePositiveInteger(environment.GATEWAY_PROXY_TIMEOUT_MS, 30_000, 'GATEWAY_PROXY_TIMEOUT_MS')
     parseNonNegativeInteger(environment.RATE_LIMIT_MAX, 300, 'RATE_LIMIT_MAX')
     parsePositiveInteger(environment.RATE_LIMIT_WINDOW_MS, 60_000, 'RATE_LIMIT_WINDOW_MS')
     parseCorsOrigins(environment.CORS_ORIGINS, ['*'], 'CORS_ORIGINS')
     getBoolean(environment.CORS_CREDENTIALS, false)
 
-    const accountServiceUrl = readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:3000')
+    const accountServiceUrl = readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:5010')
     normalizeHttpUrl(accountServiceUrl, 'ACCOUNT_SERVICE_URL')
-    const financeServiceUrl = readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:3010')
+    const financeServiceUrl = readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:5030')
     normalizeHttpUrl(financeServiceUrl, 'FINANCE_SERVICE_URL')
 
     return environment
@@ -21,7 +21,7 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
 export function validateRemoteConfig(config: Record<string, unknown>): void {
     const server = getOptionalRecord(config.server, 'server')
     if (server?.port !== undefined) {
-        parsePort(server.port, 3999, 'server.port')
+        parsePort(server.port, 5000, 'server.port')
     }
 
     const gateway = getOptionalRecord(config.gateway, 'gateway')
@@ -135,14 +135,14 @@ export function getFallbackGatewayRoutes(environment: Record<string, unknown>): 
             id: 'account',
             prefix: '/api/account',
             serviceName: readString(environment.ACCOUNT_SERVICE_NAME, 'chat-web-account-service'),
-            fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:3000'), 'ACCOUNT_SERVICE_URL'),
+            fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:5010'), 'ACCOUNT_SERVICE_URL'),
             enabled: true
         },
         {
             id: 'finance',
             prefix: '/api/finance',
             serviceName: readString(environment.FINANCE_SERVICE_NAME, 'chat-web-finance-service'),
-            fallbackUrl: normalizeHttpUrl(readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:3010'), 'FINANCE_SERVICE_URL'),
+            fallbackUrl: normalizeHttpUrl(readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:5030'), 'FINANCE_SERVICE_URL'),
             enabled: true
         }
     ]
