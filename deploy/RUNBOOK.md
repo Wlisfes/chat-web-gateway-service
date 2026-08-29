@@ -57,7 +57,7 @@ mysql -h chat-web-mysql.lisfes.cn -P 3306 -u chat -p
 
 这些基础设施入口都是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2` 的连通性及本机防火墙。RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`，Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`。
 
-本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
+本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本还会幂等创建 `10.66.0.2` 到本机 Docker 发布端口的代理。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File F:\chat-web-service\chat-web-gateway-service\deploy\allow-wireguard-infrastructure.ps1
