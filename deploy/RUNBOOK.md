@@ -60,7 +60,7 @@ mysql -h chat-web-mysql.lisfes.cn -P 3306 -u chat -p
 本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。首次配置或端口出现 `502` 时，请以管理员身份运行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\deploy\allow-wireguard-infrastructure.ps1
+powershell -ExecutionPolicy Bypass -File F:\chat-web-service\chat-web-gateway-service\deploy\allow-wireguard-infrastructure.ps1
 ```
 
 日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
