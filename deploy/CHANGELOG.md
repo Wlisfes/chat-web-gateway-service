@@ -1,5 +1,29 @@
 # 部署变更记录
 
+## 2026-08-29：管理端页面作为浏览器跨域来源
+
+- 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
+- 关联版本：Gateway 本次配置提交；Nacos `chat-web-gateway-service.yaml`。
+- 变更内容：浏览器页面来源固定为 `https://chat.lisfes.cn`，API 入口固定为 `https://chat-web.lisfes.cn`；Gateway 的跨域白名单需要包含页面 Origin，并保持 `credentials: true` 以支持登录和 Token 续期。
+- 机器侧操作：更新 Nacos `gateway.cors.allowedOrigins` 和 `gateway.cors.credentials`，再发布 Gateway 及 Manager。
+- 验证命令：访问 `https://chat.lisfes.cn/health`、`https://chat-web.lisfes.cn/health`，并在浏览器确认登录与续期请求不再被 CORS 拦截。
+- 回滚方法：恢复上一版 Nacos CORS 配置并回滚 Gateway 镜像；页面静态资源与业务数据不回滚。
+
+## 2026-08-29：基础设施域名统一
+
+- 基础设施公网域名统一按 Docker 容器名命名：`chat-web-mysql.lisfes.cn`、`chat-web-nacos.lisfes.cn`、`chat-web-dozzle.lisfes.cn`、`chat-web-rabbitmq.lisfes.cn`、`chat-web-redis.lisfes.cn`、`chat-web-kafka.lisfes.cn`。
+- 云端 Nginx 的 TCP 入口使用容器对应端口 `3306`、`6379`、`5672`、`9092`；Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`，Dozzle 使用 `https://chat-web-dozzle.lisfes.cn/`，RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`。
+- RabbitMQ 管理台改为经本机 Nginx `80` 端口转发到 `chat-web-rabbitmq:15672`，避免 WireGuard 直连 Windows 发布端口时被主机防火墙拦截。旧域名不再作为公网入口。
+
+## 2026-08-29：统一公网域名前缀
+
+- 影响范围：云端 Nginx、本机网关 Nginx、Gateway 与 Dozzle 公网入口、Nacos 公网入口。
+- 关联版本：Gateway 本次配置提交；云端 Nginx `/opt/chat-web-cloud/nginx.conf`。
+- 变更内容：正式公网域名统一增加 `chat-` 前缀：`chat-web.lisfes.cn`（Gateway）、`chat-logs.lisfes.cn`（Dozzle）、`chat-nacos.lisfes.cn`（Nacos）。旧公网域名 `web.lisfes.cn`、`logs.lisfes.cn`、`nacos.lisfes.cn` 已从 DNS 与 Nginx 入口移除；证书和转发配置改用新域名。
+- 机器侧操作：同步云端 Nginx 配置并 reload；同步 `web-gateway.conf`、`dozzle.conf` 到本机 `chat-web-nginx` 并 reload。Dozzle 和 Nacos 仍只运行在原主机/云端，不新增容器。
+- 验证：`curl -k -I https://chat-web.lisfes.cn/health`、`curl -k -I https://chat-logs.lisfes.cn/`、`curl -k -I https://chat-nacos.lisfes.cn/nacos/`；执行两端 `nginx -t` 并确认新域名证书无不匹配。
+- 回滚：恢复云端 Nginx 备份和本机两个入口配置后 reload；如需恢复旧域名，还需重新添加对应 DNS 记录和证书域名。
+
 ## 2026-08-29：新增云端 Nginx 到本机 Dozzle 的日志入口
 
 - 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
@@ -292,6 +316,19 @@ curl -fsS http://127.0.0.1:3999/api/account/health
 - Actions 部署脚本会在健康检查失败时自动恢复部署前镜像。
 - 手动恢复时，将 `/opt/chat-web-gateway-service/compose.yml` 的 `IMAGE` 指向上一条已验证 SHA 后执行 `docker compose up -d --no-deps gateway-service`。
 - Nacos 路由配置异常时，恢复上一版 `chat-web-gateway-service.yaml`，不要删除 Account 服务容器。
+
+## 2026-08-29：开发数据库域名入口
+
+- 影响范围：云端 Nginx、WireGuard 到本机 MySQL 的 TCP 转发。
+- 变更内容：云端 Nginx 新增 `chat-mysql.lisfes.cn:13306` TCP 入口，经 WireGuard 转发到本机 Docker MySQL `10.66.0.2:3306`；开发电脑无需安装 WireGuard。
+- 安全要求：阿里云安全组仅允许受信任的开发电脑公网 IP 访问 `13306`，MySQL 使用独立开发账号，不使用 `root`。
+- 验证：`Test-NetConnection chat-mysql.lisfes.cn -Port 13306`，再使用 MySQL 客户端登录。
+- 回滚：删除云端 Nginx `stream` 中的 `13306` 服务并移除 Compose 的 `13306:13306` 端口映射。
+
+## 2026-08-29：开发数据库账号命名
+
+- 变更内容：远程开发数据库账号统一使用 `chat`，保留原有开发密码和业务数据库权限，并移除 `chat_dev` 账号。
+- 验证：通过 `chat-mysql.lisfes.cn:13306` 使用 `chat` 账号执行 `SELECT 1` 成功。
 
 ## 记录模板
 

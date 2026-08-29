@@ -19,15 +19,15 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 
 ## 路由规则
 
-| 客户端地址                        | 下游服务地址  |
-| --------------------------------- | ------------- |
-| `GET /api/account/health`         | `GET /health` |
-| `/api/account/users/**`           | `/users/**`   |
-| `GET /api/finance/health`         | `GET /health` |
-| `/api/finance/brand/**`           | `/brand/**`   |
-| `GET /api/crm/health`             | `GET /health` |
-| `/api/crm/sms/**`                 | `/sms/**`     |
-| `GET /api/skyline/health/live`    | `GET /health/live` |
+| 客户端地址                     | 下游服务地址       |
+| ------------------------------ | ------------------ |
+| `GET /api/account/health`      | `GET /health`      |
+| `/api/account/users/**`        | `/users/**`        |
+| `GET /api/finance/health`      | `GET /health`      |
+| `/api/finance/brand/**`        | `/brand/**`        |
+| `GET /api/crm/health`          | `GET /health`      |
+| `/api/crm/sms/**`              | `/sms/**`          |
+| `GET /api/skyline/health/live` | `GET /health/live` |
 
 账号服务仍然负责业务鉴权、字段校验和数据访问。网关后续可以增加 JWT 的通用身份解析，但下游服务不能因此取消权限校验。
 
@@ -50,14 +50,14 @@ yarn dev
 - CRM 服务：`http://127.0.0.1:5000/api/crm/**`
 - Skyline 服务：`http://127.0.0.1:5000/api/skyline/**`
 
-公网 Gateway 入口为 `https://web.lisfes.cn`。该域名由云端 Nginx 终止 TLS，经 WireGuard 转发到本机，再由本机 Nginx 转发到 Gateway `5000`；Gateway 本身不直接暴露公网端口。
+公网 Gateway 入口为 `https://chat-web.lisfes.cn`。该域名由云端 Nginx 终止 TLS，经 WireGuard 转发到本机，再由本机 Nginx 转发到 Gateway `5000`；Gateway 本身不直接暴露公网端口。
 
 根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`。
 
 本地开发同样连接云端 Nacos，当前暂时使用正式 Data ID；根目录 `.env` 只填写以下 Nacos 参数：
 
 ```dotenv
-NACOS_SERVER=10.66.0.1:8848
+NACOS_SERVER=chat-web-nacos.lisfes.cn:8848
 NACOS_NAMESPACE=replace-with-nacos-namespace-id
 NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
 ```
@@ -84,9 +84,10 @@ gateway:
         windowMs: 60000
     cors:
         allowedOrigins:
+            - https://chat.lisfes.cn
             - https://admin.example.com
             - https://chat.example.com
-        credentials: false
+        credentials: true
     routes:
         - id: account
           prefix: /api/account
@@ -118,7 +119,7 @@ nacos:
         serviceName: chat-web-gateway-service
 ```
 
-跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。
+跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，必须把该 Origin 加入白名单。
 
 路由和跨域配置更新后会由 Nacos 订阅实时生效。`server.port` 和网关注册 IP/端口涉及监听地址，修改后需要重启服务。
 
