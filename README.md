@@ -50,7 +50,7 @@ yarn dev
 - CRM 服务：`http://127.0.0.1:5000/api/crm/**`
 - Skyline 服务：`http://127.0.0.1:5000/api/skyline/**`
 
-公网 Gateway 入口为 `https://chat-web.lisfes.cn`。该域名由云端 Nginx 终止 TLS，经 WireGuard 转发到本机，再由本机 Nginx 转发到 Gateway `5000`；Gateway 本身不直接暴露公网端口。旧域名 `web.lisfes.cn` 暂时保留为兼容入口。
+公网 Gateway 入口为 `https://chat-web.lisfes.cn`。该域名由云端 Nginx 终止 TLS，经 WireGuard 转发到本机，再由本机 Nginx 转发到 Gateway `5000`；Gateway 本身不直接暴露公网端口。
 
 根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`。
 

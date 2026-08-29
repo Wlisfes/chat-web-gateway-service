@@ -33,7 +33,7 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
-Dozzle 公网入口为 `https://chat-logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。旧域名 `logs.lisfes.cn` 和本机入口 `logs.lisfes.com` 暂时保留为兼容入口；生产访问统一使用 `chat-logs.lisfes.cn`。
+Dozzle 公网入口为 `https://chat-logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。公网旧域名已移除；`logs.lisfes.com` 仅保留为本机直连入口。
 
 开发数据库入口为 `chat-mysql.lisfes.cn:13306`：域名解析到云服务器 `47.119.21.228`，云端 Nginx `stream` 将 TCP 连接经 WireGuard 转发到本机 `10.66.0.2:3306` 的 Docker MySQL。开发电脑无需安装 WireGuard，项目中的数据库主机填写 `chat-mysql.lisfes.cn`、端口填写 `13306`。阿里云安全组必须仅向受信任的开发电脑公网 IP 开放 TCP `13306`，禁止向全网开放；MySQL 使用独立开发账号，不使用 `root`。
 
@@ -100,7 +100,7 @@ docker network inspect chat-web-infrastructure
 docker logs --tail 100 chat-web-nacos
 ```
 
-Gateway、Account、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5010`、`5020`、`5030`、`5040` 端口。公网 `chat-web.lisfes.cn` 由云端 Nginx 经 WireGuard 转发到本机 `10.66.0.2:80`，本机入口再转发到 Gateway `5000`；旧域名 `web.lisfes.cn` 暂时保留兼容。
+Gateway、Account、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5010`、`5020`、`5030`、`5040` 端口。公网 `chat-web.lisfes.cn` 由云端 Nginx 经 WireGuard 转发到本机 `10.66.0.2:80`，本机入口再转发到 Gateway `5000`。
 
 ### 3. 检查 chat-home-server Runner
 
