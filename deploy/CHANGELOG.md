@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：新增云端 web 域名到本机 Gateway 的入口
+
+- 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；公网域名 `web.lisfes.cn`。
+- 变更内容：本机共享 Nginx 新增 `web.lisfes.cn` 内网入口，将请求转发到 `chat-web-gateway-service:5000`；云端 Nginx 通过 WireGuard `10.66.0.2:80` 转发公网 HTTPS 请求。
+- 机器侧操作：云端 Nginx 配置 `web.lisfes.cn` 的 HTTP→HTTPS、TLS 和 WireGuard 上游；本机部署流水线自动同步入口并 reload。
+- 验证命令：访问 `https://web.lisfes.cn/health` 及 `https://web.lisfes.cn/api/skyline/health/live`，确认状态码正常。
+- 回滚方法：删除云端 `web.lisfes.cn` Server 配置和本机 `web-gateway.conf`，reload 两端 Nginx；Gateway 镜像可独立回滚。
+
 ## 2026-08-29：Skyline 接入统一网关
 
 - 影响机器：`chat-home-server`。
