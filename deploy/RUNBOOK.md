@@ -38,6 +38,16 @@ Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Fi
 
 部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制历史机器的完整 Nacos 配置。
 
+### 文档页首次加载慢
+
+Knife4j 的 `doc.html` 只加载当前页面需要的脚本，其他 chunk 按需加载。本机 Nginx 对 hash 静态资源启用 gzip 和一年 immutable 缓存；首次部署后可用以下命令确认压缩和缓存头已经生效：
+
+```powershell
+curl -k -I -H "Accept-Encoding: gzip" https://web.lisfes.cn/assets/js/chunk-vendors.8e9185cb.js
+```
+
+响应应包含 `Content-Encoding: gzip` 与 `Cache-Control: public, max-age=31536000, immutable`。如果仍然看到完整未压缩的 `Content-Length`，先确认 Gateway 流水线是否已同步 `/etc/nginx/conf.d/web-gateway.conf` 并执行 `docker exec chat-web-nginx nginx -t`、`docker exec chat-web-nginx nginx -s reload`；云端 Nginx 只负责 TLS 和 WireGuard 转发。
+
 ## 五分钟排障
 
 ### 1. 检查 Gateway 和转发链路

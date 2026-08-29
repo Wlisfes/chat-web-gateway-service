@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：优化 Knife4j 文档页首次加载
+
+- 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；公网域名 `web.lisfes.cn`。
+- 变更内容：Gateway 对 Knife4j `doc.html` 去除不会影响当前页面的预加载 chunk；本机 Nginx 为带 hash 的 JS、CSS、字体和图片启用 gzip，并设置一年 immutable 缓存，减少首次打开文档页的传输量和后续重复下载。
+- 机器侧操作：Gateway 部署流水线同步 `web-gateway.conf` 并 reload 本机 Nginx；云端 Nginx 继续透传本机已压缩的静态资源，无需修改 TLS 或 WireGuard 配置。
+- 验证命令：执行 `yarn format:check`、`yarn test`；检查 `curl -k -I -H 'Accept-Encoding: gzip' https://web.lisfes.cn/assets/js/chunk-vendors.8e9185cb.js` 返回 `Content-Encoding: gzip` 和 `Cache-Control: public, max-age=31536000, immutable`，访问 `https://web.lisfes.cn/doc.html` 确认页面正常渲染。
+- 回滚方法：恢复上一条健康 Gateway 完整 SHA，并将本机 `web-gateway.conf` 恢复为旧版本后 reload Nginx；浏览器缓存可自然失效，不涉及 Nacos、数据库或业务服务。
+
 ## 2026-08-29：新增云端 web 域名到本机 Gateway 的入口
 
 - 影响机器：`chat-home-server` 与云端 `47.119.21.228`。
