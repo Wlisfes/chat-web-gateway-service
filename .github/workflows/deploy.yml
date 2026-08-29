@@ -135,24 +135,29 @@ jobs:
               run: |
                   set -eu
                   docker exec chat-web-gateway-service node -e '
-                    const paths = ["/api/account/health", "/api/finance/health", "/api/crm/health"]
+                    const routes = [
+                      { path: "/api/account/health", validate: body => body.code === 200 },
+                      { path: "/api/finance/health", validate: body => body.code === 200 },
+                      { path: "/api/crm/health", validate: body => body.code === 200 },
+                      { path: "/api/skyline/health/live", validate: body => body.status === "UP" }
+                    ]
                     const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
-                    async function waitForRoute(path) {
+                    async function waitForRoute(route) {
                       let lastError
                       for (let attempt = 1; attempt <= 120; attempt += 1) {
                         try {
-                          const response = await fetch(`http://127.0.0.1:5000${path}`, { signal: AbortSignal.timeout(3000) })
+                          const response = await fetch(`http://127.0.0.1:5000${route.path}`, { signal: AbortSignal.timeout(3000) })
                           const body = await response.json()
-                          if (body.code === 200) return
-                          lastError = new Error(`${path} returned business code ${body.code}`)
+                          if (route.validate(body)) return
+                          lastError = new Error(`${route.path} returned an unexpected response`)
                         } catch (error) {
                           lastError = error
                         }
                         await delay(5000)
                       }
-                      throw lastError || new Error(`${path} did not become ready`)
+                      throw lastError || new Error(`${route.path} did not become ready`)
                     }
-                    Promise.all(paths.map(waitForRoute)).catch(error => { console.error(error.message); process.exit(1) })'
+                    Promise.all(routes.map(waitForRoute)).catch(error => { console.error(error.message); process.exit(1) })'
 
             - name: Log out from GitHub Container Registry
               if: always()

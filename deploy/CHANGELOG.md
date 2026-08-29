@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-29：Skyline 接入统一网关
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；Nacos Data ID `chat-web-gateway-service.yaml`。
+- 变更内容：新增 `/api/skyline/**` 路由，使用 Nacos 服务名 `chat-web-skyline-service` 并以 `http://chat-web-skyline-service:5040` 作为后备地址；流水线增加 Skyline 路由验证。
+- 机器侧操作：部署迁移脚本幂等追加 Skyline 路由，网关订阅配置后立即生效；Skyline 的独立域名入口由 Skyline 仓库部署流程清理。
+- 验证命令：访问 `http://127.0.0.1:5000/api/skyline/health/live`，预期返回 `{"status":"UP"}`。
+- 回滚方法：从 Nacos `gateway.routes` 删除 Skyline 路由并恢复上一条健康 Gateway 完整 SHA；不回滚 Skyline 服务数据。
+
 ## 2026-08-29：移除本地 Nacos 路由模板
 
 - 影响机器：`chat-home-server`；本次仅调整仓库文件，不触发镜像构建或线上部署。

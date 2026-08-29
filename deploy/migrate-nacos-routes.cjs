@@ -44,15 +44,30 @@ function migrateRoutePrefixes(content) {
     let migrated = content
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api\/windows\/finance['"]?[ \t]*$/gm, '$1/api/finance')
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api['"]?[ \t]*$/gm, '$1/api/account')
+        .replace(
+            /\n {8}- id: skyline\r?\n {10}prefix: \/api\/skyline\r?\n {10}serviceName: chat-web-skyline-service\r?\n {10}fallbackUrl: http:\/\/chat-web-skyline-service:5040\r?\n {10}enabled: true\r?\n/g,
+            '\n'
+        )
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/crm['"]?[ \t]*$/m.test(migrated)) {
         const crmRoute =
-            '        - id: crm\n' +
-            '          prefix: /api/crm\n' +
-            '          serviceName: chat-web-crm-service\n' +
-            '          fallbackUrl: http://chat-web-crm-service:5020\n' +
-            '          enabled: true\n'
+            '    - id: crm\n' +
+            '      prefix: /api/crm\n' +
+            '      serviceName: chat-web-crm-service\n' +
+            '      fallbackUrl: http://chat-web-crm-service:5020\n' +
+            '      enabled: true\n'
         if (!/^nacos:\s*$/m.test(migrated)) throw new Error('Gateway Nacos config must contain the root nacos section')
         migrated = migrated.replace(/^(nacos:\s*)$/m, `${crmRoute}\n$1`)
+    }
+    if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/skyline['"]?[ \t]*$/m.test(migrated)) {
+        const skylineRoute =
+            '    - id: skyline\n' +
+            '      prefix: /api/skyline\n' +
+            '      serviceName: chat-web-skyline-service\n' +
+            '      fallbackUrl: http://chat-web-skyline-service:5040\n' +
+            '      enabled: true\n'
+        const nacosIndex = migrated.search(/^nacos:\s*$/m)
+        if (nacosIndex < 0) throw new Error('Gateway Nacos config must contain the root nacos section')
+        migrated = `${migrated.slice(0, nacosIndex)}${skylineRoute}\n${migrated.slice(nacosIndex)}`
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/finance['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Finance prefix /api/finance')
@@ -62,6 +77,9 @@ function migrateRoutePrefixes(content) {
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/crm['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the CRM prefix /api/crm')
+    }
+    if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/skyline['"]?[ \t]*$/m.test(migrated)) {
+        throw new Error('Gateway Nacos config must contain the Skyline prefix /api/skyline')
     }
     if (/^[ \t]*prefix:[ \t]*['"]?\/api['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must not contain the root prefix /api')
