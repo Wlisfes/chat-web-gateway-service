@@ -137,6 +137,7 @@ jobs:
                   nginx_container=chat-web-nginx
                   docker inspect "$nginx_container" >/dev/null
                   docker cp deploy/web-gateway-ingress.conf "$nginx_container:/etc/nginx/conf.d/web-gateway.conf"
+                  docker cp deploy/dozzle-ingress.conf "$nginx_container:/etc/nginx/conf.d/dozzle.conf"
                   docker exec "$nginx_container" nginx -t
                   docker exec "$nginx_container" nginx -s reload
 

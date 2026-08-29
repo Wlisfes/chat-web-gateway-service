@@ -32,6 +32,18 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
+Dozzle 公网入口为 `https://logs.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。本机旧入口 `logs.lisfes.com` 仅用于本机直连兼容，可以保留；生产访问统一使用 `.cn` 域名。
+
+日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
+
+```powershell
+curl -k -I -H "Accept-Encoding: gzip" https://logs.lisfes.cn/assets/main-PgmtVYCl.js
+docker exec chat-web-nginx nginx -t
+docker exec chat-web-nginx nginx -s reload
+```
+
+静态资源响应应包含 `Content-Encoding: gzip` 和 `Cache-Control: public, max-age=31536000, immutable`；首页返回 `307 /login` 表示 Dozzle 鉴权入口正常。
+
 仓库根目录和服务器 `deploy/.env.example` 均只保留进程启动及 Nacos 建连/注册字段；路由、后备地址、跨域、限流及注册发现配置统一以 Nacos 远端 `chat-web-gateway-service.yaml` 为准。
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
