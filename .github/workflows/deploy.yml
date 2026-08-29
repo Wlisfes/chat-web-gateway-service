@@ -107,6 +107,16 @@ jobs:
                     install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env"
                     echo "Initialized $DEPLOY_PATH/.env from deploy/.env.example"
                   fi
+                  test -r "$DEPLOY_PATH/.env" || {
+                    echo "$DEPLOY_PATH/.env is not readable by the deployment runner" >&2
+                    exit 1
+                  }
+
+            - name: 清理旧版 Nacos 启动覆盖项
+              shell: bash
+              run: |
+                  set -eu
+                  sed -i -E '/^NACOS_(REQUEST_TIMEOUT|REGISTER_PORT|REGISTER_IP|REGISTER_REQUIRED|GROUP|CONFIG_GROUP)=/d' "$DEPLOY_PATH/.env"
 
             - name: Migrate Nacos route prefixes
               shell: bash

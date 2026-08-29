@@ -77,6 +77,8 @@ docker exec chat-web-nginx nginx -s reload
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
+部署主机上的 `$DEPLOY_PATH/.env` 由 `runner:runner` 持有并使用 `0600` 权限，供专用 Runner 读取 Nacos 建连参数；如果文件被 root 创建，先执行 `chown runner:runner "$DEPLOY_PATH/.env" && chmod 600 "$DEPLOY_PATH/.env"`，不要放宽为全局可读。
+
 部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制历史机器的完整 Nacos 配置。
 
 ### 文档页首次加载慢
