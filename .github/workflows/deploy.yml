@@ -141,7 +141,7 @@ jobs:
                       let lastError
                       for (let attempt = 1; attempt <= 120; attempt += 1) {
                         try {
-                          const response = await fetch(`http://127.0.0.1:3999${path}`, { signal: AbortSignal.timeout(3000) })
+                          const response = await fetch(`http://127.0.0.1:5000${path}`, { signal: AbortSignal.timeout(3000) })
                           const body = await response.json()
                           if (body.code === 200) return
                           lastError = new Error(`${path} returned business code ${body.code}`)

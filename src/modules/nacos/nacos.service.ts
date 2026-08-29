@@ -267,7 +267,7 @@ export class NacosService implements OnModuleInit, OnModuleDestroy {
 
         const instance = {
             ip: this.resolveRegisterIp(),
-            port: getPort(this.configService.get('NACOS_REGISTER_PORT') ?? this.serviceConfig.getServerPort(), 3999, 'NACOS_REGISTER_PORT')
+            port: getPort(this.configService.get('NACOS_REGISTER_PORT') ?? this.serviceConfig.getServerPort(), 5000, 'NACOS_REGISTER_PORT')
         }
 
         await this.namingClient.registerInstance(

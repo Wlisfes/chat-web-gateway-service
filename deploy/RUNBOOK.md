@@ -14,10 +14,10 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | 项目                 | 值                                                 |
 | -------------------- | -------------------------------------------------- |
 | 容器                 | `chat-web-gateway-service`                         |
-| 访问地址             | `http://127.0.0.1:3999`                            |
-| 健康检查             | `http://127.0.0.1:3999/health`                     |
-| Account 转发检查     | `http://127.0.0.1:3999/api/account/health`         |
-| Finance 转发检查     | `http://127.0.0.1:3999/api/finance/health`         |
+| 访问地址             | `http://127.0.0.1:5000`                            |
+| 健康检查             | `http://127.0.0.1:5000/health`                     |
+| Account 转发检查     | `http://127.0.0.1:5000/api/account/health`         |
+| Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`         |
 | 部署目录             | `/opt/chat-web-gateway-service`                    |
 | Docker 网络          | `chat-web-infrastructure`                          |
 | Nacos Data ID        | `chat-web-gateway-service.yaml`                    |
@@ -29,7 +29,7 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
-仓库根目录 `.env.example` 只用于本地进程启动和 Nacos 建连；路由、后备地址、跨域、限流及注册发现配置统一以 Nacos 远端 `chat-web-gateway-service.yaml` 为准，仓库中的同名 YAML 仅作结构参考。服务器 `deploy/.env.example` 还承担 Compose 与部署脚本参数，不得用根示例覆盖。
+仓库根目录和服务器 `deploy/.env.example` 均只保留进程启动及 Nacos 建连/注册字段；路由、后备地址、跨域、限流及注册发现配置统一以 Nacos 远端 `chat-web-gateway-service.yaml` 为准。
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
@@ -43,9 +43,9 @@ Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Fi
 docker inspect chat-web-gateway-service --format "{{.Config.Image}} {{.State.Status}} {{.State.Health.Status}}"
 docker inspect chat-web-gateway-service --format "{{json .HostConfig.LogConfig}}"
 docker logs --tail 200 chat-web-gateway-service
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/account/health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3999/api/finance/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/account/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/finance/health
 ```
 
 日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/account/consumer/**` 转发。
@@ -59,7 +59,7 @@ docker network inspect chat-web-infrastructure
 docker logs --tail 100 chat-web-nacos
 ```
 
-Gateway、Account、Finance、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，Account 和 Finance 后备地址分别为 `http://chat-web-account-service:3000`、`http://chat-web-finance-service:3010`。
+Gateway、Account、Finance、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，Account 和 Finance 后备地址分别为 `http://chat-web-account-service:5010`、`http://chat-web-finance-service:5030`。
 
 ### 3. 检查 chat-home-server Runner
 
@@ -82,7 +82,7 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 | 现象                    | 原因                                  | 处理                                                       |
 | ----------------------- | ------------------------------------- | ---------------------------------------------------------- |
 | 部署一直 Queued         | `chat-home-server` 的 Gateway Runner 离线 | 启动 WSL 并重启 Gateway Runner                          |
-| 3999 拒绝连接           | Gateway 未部署或未通过健康检查        | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
+| 5000 拒绝连接           | Gateway 未部署或未通过健康检查        | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
 | Nacos 配置不存在        | Namespace ID、Data ID 或 Group 不一致 | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`      |
 | Account 转发 502        | Account 容器不可达且 Nacos 无健康实例 | 检查 Account 健康和 Docker 网络                            |
 | `healthyInstances: 0`   | Account 尚未注册到 Nacos              | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
