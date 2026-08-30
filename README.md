@@ -121,7 +121,7 @@ nacos:
 
 跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，必须把该 Origin 加入白名单。
 
-管理端请求使用凭据并携带 `Platform` 请求头，因此生产 Nacos 必须设置 `gateway.cors.credentials: true`。Origin 和凭据策略只由 Gateway 的 Nacos 配置维护，云端与本机 Nginx 不重复添加 CORS 响应头。
+管理端验证码、登录和 Token 续期请求使用凭据，因此生产 Nacos 必须设置 `gateway.cors.credentials: true`；管理端不再依赖已废弃的 `Platform` 请求头。Origin 和凭据策略只由 Gateway 的 Nacos 配置维护，云端与本机 Nginx 不重复添加 CORS 响应头。
 
 路由和跨域配置更新后会由 Nacos 订阅实时生效。`server.port` 和网关注册 IP/端口涉及监听地址，修改后需要重启服务。
 

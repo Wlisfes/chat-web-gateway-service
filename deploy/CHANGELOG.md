@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：废弃管理端 Platform 请求头
+
+- 影响机器：`chat-home-server` 与公网 Gateway。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；Manager 同步移除 `Platform` 请求头并改用 API 域名加载验证码。
+- 变更内容：Gateway CORS 允许请求头列表删除已废弃的 `Platform`；继续由 Nacos `gateway.cors` 提供 `https://chat.lisfes.cn` Origin 和凭据策略，验证码 Cookie 转发逻辑保持不变。
+- 机器侧操作：重新部署 Gateway；确认 Nacos 保留 `allowedOrigins: https://chat.lisfes.cn` 和 `credentials: true`，无需修改路由、数据库、Redis 或 Nginx。
+- 验证命令：执行 Gateway 类型检查、构建和测试；发布后发送只带 `content-type` 的登录预检，并用 Cookie 会话验证验证码接口到登录接口的转发。
+- 回滚方法：恢复上一条健康 Gateway 完整 Git SHA；Nacos Origin、凭据策略和业务数据不回滚。
+
 ## 2026-08-30：禁止下游覆盖网关跨域响应头
 
 - 影响机器：`chat-home-server` 与公网 Gateway。
