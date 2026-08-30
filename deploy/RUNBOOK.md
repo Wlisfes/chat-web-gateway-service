@@ -42,11 +42,18 @@ Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负
 | `chat-web-mysql`    | `chat-web-mysql.lisfes.cn`    | MySQL TCP `3306`                                    |
 | `chat-web-nacos`    | `chat-web-nacos.lisfes.cn`    | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848` |
 | `chat-web-dozzle`   | `chat-web-dozzle.lisfes.cn`   | HTTPS `443`                                         |
-| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443`                 |
+| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443` / TCP `15672`  |
 | `chat-web-redis`    | `chat-web-redis.lisfes.cn`    | Redis TCP 公网 `6379`（WireGuard `18080`，本机回环 `16379`） |
 | `chat-web-kafka`    | `chat-web-kafka.lisfes.cn`    | Kafka TCP `9092`                                    |
 
-开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。Redis 的公网链路为 `chat-web-redis.lisfes.cn:6379` → 云端 Nginx → WireGuard `10.66.0.2:18080` → 本机 `127.0.0.1:16379` → 容器 `6379`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口，禁止向全网开放。
+开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。公网基础设施链路如下：
+
+- Redis：`chat-web-redis.lisfes.cn:6379` → 云端 Nginx → WireGuard `10.66.0.2:18080` → 本机 `127.0.0.1:16379` → 容器 `6379`。
+- RabbitMQ AMQP：`chat-web-rabbitmq.lisfes.cn:5672` → WireGuard `10.66.0.2:18081` → 本机 `127.0.0.1:15674` → 容器 `5672`。
+- RabbitMQ 管理台：浏览器使用 `https://chat-web-rabbitmq.lisfes.cn/` → 本机 Nginx `80` → 容器 `chat-web-rabbitmq:15672`；需要 TCP 访问时，`chat-web-rabbitmq.lisfes.cn:15672` → WireGuard `10.66.0.2:18082` → 本机 `127.0.0.1:15673` → 容器 `15672`。
+- Kafka：`chat-web-kafka.lisfes.cn:9092` → WireGuard `10.66.0.2:18083` → 本机 `127.0.0.1:19092` → 容器 `9092`。
+
+本机端口代理由 `allow-wireguard-infrastructure.ps1` 幂等创建：`18080→16379`、`18081→15674`、`18082→15673`、`18083→19092`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口（公网端口仍为 `6379`、`5672`、`15672`、`9092`），禁止向全网开放。
 
 验证云端入口：
 
@@ -58,11 +65,11 @@ Test-NetConnection chat-web-redis.lisfes.cn -Port 6379
 
 Redis 客户端使用明文连接（不要使用 `rediss://`），填写域名端口 `6379` 和 Redis 密码；本机宿主程序直连时使用 `127.0.0.1:16379`，Docker 内服务继续使用 `chat-web-redis:6379`。云端 Nginx 的 stream 上游必须是 `10.66.0.2:18080`，不能再指向 `10.66.0.2:6379`。
 
-云端 Nginx 配置通过只读 bind mount `/opt/chat-web-cloud/nginx.conf:/etc/nginx/nginx.conf:ro` 使用。若采用原子替换（先上传临时文件再 `mv`）更新配置，运行中的容器仍可能持有旧 inode；替换后必须执行 `docker compose -p chat-web-cloud -f /opt/chat-web-cloud/compose.yml up -d --no-deps --force-recreate web`，再检查容器内配置哈希和健康状态。仅 `nginx -s reload` 适用于直接修改同一个 inode 的场景。
+云端 Nginx 配置通过只读 bind mount `/opt/chat-web-cloud/nginx.conf:/etc/nginx/nginx.conf:ro` 使用。若采用原子替换（先上传临时文件再 `mv`）更新配置，运行中的容器仍可能持有旧 inode；替换后必须执行 `docker compose -p chat-web-cloud -f /opt/chat-web-cloud/compose.yml up -d --no-deps --force-recreate web`，再检查容器内配置哈希和健康状态。仅 `nginx -s reload` 适用于直接修改同一个 inode 的场景。RabbitMQ/Kafka 的 stream 上游必须分别使用 `10.66.0.2:18081`、`10.66.0.2:18083`，不能再指向旧的 `10.66.0.2:5672`、`10.66.0.2:9092`；RabbitMQ 管理台继续走本机 Nginx `80`。
 
 这些基础设施入口都是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2` 的连通性及本机防火墙。RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`，Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`。
 
-本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建 `10.66.0.2:18080` 到 Redis 本机回环端口 `127.0.0.1:16379` 的代理，并清理旧的 Redis `6379`/`16379` 监听规则；其他基础设施端口仍按同端口转发。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
+本机 Windows 防火墙只允许 `chat-web-home` WireGuard 接口访问必要端口（`18080`–`18083` 以及现有 HTTP、MySQL、Nacos 入口），不再放行旧的 RabbitMQ/Kafka 端口 `5672`、`15672`、`9092`。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建四条本机回环代理，并清理旧的 `6379`、`16379`、`5672`、`15672`、`9092` 监听规则。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File F:\chat-web-service\chat-web-gateway-service\deploy\allow-wireguard-infrastructure.ps1
@@ -77,6 +84,19 @@ Test-NetConnection chat-web-redis.lisfes.cn -Port 6379
 ```
 
 预期 Redis 容器仅发布 `127.0.0.1:16379`，portproxy 存在 `10.66.0.2:18080 -> 127.0.0.1:16379`，且不存在 `10.66.0.2:6379` 或 `10.66.0.2:16379` 的旧监听规则。若仅 TCP 成功但 RedisInsight 仍提示无法连接，应从云端执行 `nc -vz 10.66.0.2 18080`，再检查云端 Nginx stream 上游和 WireGuard 防火墙；认证失败时只重新填写密码，不启用 TLS。
+
+确认 RabbitMQ/Kafka 映射和旧规则清理：
+
+```powershell
+docker inspect chat-web-rabbitmq --format '{{json .HostConfig.PortBindings}}'
+docker inspect chat-web-kafka --format '{{json .HostConfig.PortBindings}}'
+netsh interface portproxy show v4tov4
+Test-NetConnection chat-web-rabbitmq.lisfes.cn -Port 5672
+Test-NetConnection chat-web-rabbitmq.lisfes.cn -Port 15672
+Test-NetConnection chat-web-kafka.lisfes.cn -Port 9092
+```
+
+预期 RabbitMQ 容器发布 `127.0.0.1:15674:5672`、`127.0.0.1:15673:15672`，Kafka 发布 `127.0.0.1:19092:9092`；portproxy 存在 `10.66.0.2:18081 -> 127.0.0.1:15674`、`10.66.0.2:18082 -> 127.0.0.1:15673`、`10.66.0.2:18083 -> 127.0.0.1:19092`，且不存在旧的 `10.66.0.2:5672`、`10.66.0.2:15672`、`10.66.0.2:9092` 监听规则。TCP 探测成功后仍需使用 AMQP 客户端完成连接、RabbitMQ 管理台登录以及 Kafka `ApiVersions` 握手验证。
 
 日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
 

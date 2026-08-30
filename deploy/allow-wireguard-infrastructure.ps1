@@ -12,14 +12,15 @@ if (-not $principal.IsInRole($administratorRole)) {
 }
 
 $ruleName = 'Chat Web infrastructure via WireGuard'
-# Redis 的 Docker 发布端口改为本机回环 16379，避免与 Windows portproxy 的监听端口冲突。
-# 云端 Nginx 公网 6379 通过 WireGuard 访问本机 18080，再由 portproxy 转到 127.0.0.1:16379。
-$ports = [string[]]@('3306', '18080', '5672', '9092', '15672', '80', '443', '8848', '9848')
+# 基础设施容器的 RabbitMQ/Kafka 端口均发布到本机回环，再通过独立的
+# WireGuard 端口代理对云端开放，避免 Docker Desktop 占用 10.66.0.2 上的监听地址。
+# 防火墙只放行 WireGuard 实际需要的入口端口，不再放行旧的 5672/15672/9092 监听。
+$ports = [string[]]@('3306', '18080', '18081', '18082', '18083', '80', '443', '8848', '9848')
 $forwardMappings = [ordered]@{
-    18080 = 16379
-    5672 = 5672
-    9092 = 9092
-    15672 = 15672
+    '18080' = 16379
+    '18081' = 15674
+    '18082' = 15673
+    '18083' = 19092
 }
 
 Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue |
@@ -39,8 +40,8 @@ New-NetFirewallRule `
     -Profile Any `
     -Description '允许云端 Nginx 通过 WireGuard 访问 Chat Web 基础设施服务'
 
-# 清理早期 Redis 方案留下的监听规则，避免旧 6379/16379 规则与新映射并存。
-foreach ($legacyPort in [string[]]@('6379', '16379')) {
+# 清理旧版直接暴露的 Redis/RabbitMQ/Kafka 监听规则，避免旧映射与新代理并存。
+foreach ($legacyPort in [string[]]@('6379', '16379', '5672', '15672', '9092')) {
     & netsh.exe interface portproxy delete v4tov4 listenaddress=10.66.0.2 listenport=$legacyPort protocol=tcp | Out-Null
 }
 

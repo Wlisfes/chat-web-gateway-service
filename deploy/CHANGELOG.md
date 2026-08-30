@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：修复 RabbitMQ 与 Kafka 公网 TCP 转发端口冲突
+
+- 影响范围：`chat-home-server` 本机 Docker RabbitMQ/Kafka、WireGuard 端口代理、云端 Nginx stream 公网入口。
+- 变更内容：RabbitMQ AMQP 宿主机发布端口固定为 `127.0.0.1:15674`（容器 `5672`），管理端口固定为 `127.0.0.1:15673`（容器 `15672`）；Kafka 宿主机发布端口固定为 `127.0.0.1:19092`（容器 `9092`）。WireGuard 端口代理改为 `18081→15674`、`18082→15673`、`18083→19092`，Redis 的 `18080→16379` 保持不变。公网端口仍为 RabbitMQ `5672`/`15672` 和 Kafka `9092`。
+- 脚本变更：`allow-wireguard-infrastructure.ps1` 清理旧的 `10.66.0.2:5672`、`10.66.0.2:15672`、`10.66.0.2:9092` 监听及 Redis 历史规则，仅在 `chat-web-home` 接口放行 `18080`–`18083` 等必要入口。
+- 机器侧操作：更新基础设施 Compose 后分别重建 RabbitMQ、Kafka（禁止 `docker compose down -v`，保留数据卷）；以管理员运行端口代理脚本；将云端 Nginx stream 上游改为 `10.66.0.2:18081`（AMQP）、`10.66.0.2:18082`（管理 TCP）、`10.66.0.2:18083`（Kafka），管理台 HTTPS 继续经本机 Nginx `80` 转发到 `chat-web-rabbitmq:15672`。云端配置使用只读 bind mount，原子替换后需强制重建 `chat-web-cloud-nginx`。
+- 验证：执行 `docker inspect chat-web-rabbitmq --format '{{json .HostConfig.PortBindings}}'`、`docker inspect chat-web-kafka --format '{{json .HostConfig.PortBindings}}'`、`netsh interface portproxy show v4tov4`；确认三条新代理存在且旧监听不存在。公网分别使用 AMQP 客户端、RabbitMQ 管理台和 Kafka `ApiVersions` 握手验证，不能只依据 TCP 探测。
+- 回滚方法：停止公网 RabbitMQ/Kafka 客户端，恢复云端 Nginx 原上游并重新加载；删除 `18081`–`18083` portproxy，将 Compose 宿主机端口恢复为原配置后仅重建对应容器。不得删除 RabbitMQ/Kafka 数据卷。
+
 ## 2026-08-30：修复 Redis 公网 TCP 转发端口冲突
 
 - 影响范围：`chat-home-server` 本机 Docker Redis、WireGuard 端口代理、云端 Nginx stream 公网 Redis 入口。
