@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：禁止下游覆盖网关跨域响应头
+
+- 影响机器：`chat-home-server` 与公网 Gateway。
+- 关联版本：Gateway 本次完整 Git SHA 镜像；Nacos `chat-web-gateway-service.yaml`。
+- 变更内容：网关代理响应时移除下游服务返回的全部 `Access-Control-*` 响应头，跨域策略只由 Gateway 根据 Nacos `gateway.cors` 生成，避免 Account 的通配符 Origin 覆盖 `https://chat.lisfes.cn`。
+- 机器侧操作：重新部署 Gateway；无需修改 Account、Manager、数据库、Redis、Nacos 白名单或 Nginx。
+- 验证命令：分别向登录接口发送 `OPTIONS` 和带 `Origin: https://chat.lisfes.cn` 的 `POST`，确认两个响应均返回精确 Origin 和 `Access-Control-Allow-Credentials: true`，实际响应不得包含通配符 Origin。
+- 回滚方法：恢复上一条健康 Gateway 完整 Git SHA；Nacos 配置和业务数据均不回滚。
+
 ## 2026-08-30：修复网关部署权限与注册端口覆盖
 
 - 影响机器：`chat-home-server` 与云端 Nacos。

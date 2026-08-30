@@ -1,4 +1,4 @@
-import type { ClientRequest, Server } from 'node:http'
+import type { ClientRequest, IncomingMessage, Server } from 'node:http'
 import type { Socket } from 'node:net'
 import { Injectable, Logger } from '@nestjs/common'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
@@ -12,6 +12,14 @@ import { NacosService } from '@/modules/nacos/nacos.service'
 
 type UpgradeableProxy = ProxyRequestHandler & {
     upgrade: (request: Request, socket: Socket, head: Buffer) => void
+}
+
+export function removeDownstreamCorsHeaders(proxyResponse: Pick<IncomingMessage, 'headers'>): void {
+    for (const headerName of Object.keys(proxyResponse.headers)) {
+        if (headerName.toLowerCase().startsWith('access-control-')) {
+            delete proxyResponse.headers[headerName]
+        }
+    }
 }
 
 @Injectable()
@@ -80,6 +88,7 @@ export class GatewayProxyService {
                     this.setProxyHeaders(proxyRequest, this.getMatchedRoute(request as Request))
                 },
                 proxyRes: (proxyResponse, request) => {
+                    removeDownstreamCorsHeaders(proxyResponse)
                     const route = this.getMatchedRoute(request)
                     const duration = Date.now() - (this.startedAt.get(request) ?? Date.now())
                     this.logger.log(

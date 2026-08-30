@@ -111,7 +111,7 @@ curl -k -i -X OPTIONS https://chat-web.lisfes.cn/api/account/auth/token/login -H
 
 日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/account/consumer/**` 转发。
 
-跨域预检应返回 `204`，并包含 `Access-Control-Allow-Origin: https://chat.lisfes.cn`、`Access-Control-Allow-Credentials: true`，且 `Access-Control-Allow-Headers` 包含 `Platform`。Origin 和凭据策略统一维护在云端 Nacos `gateway.cors`；Nginx 不重复生成 CORS 响应头。
+跨域预检应返回 `204`，并包含 `Access-Control-Allow-Origin: https://chat.lisfes.cn`、`Access-Control-Allow-Credentials: true`，且 `Access-Control-Allow-Headers` 包含 `Platform`。实际代理响应也必须返回相同的精确 Origin，不能返回 `*`。Origin 和凭据策略统一维护在云端 Nacos `gateway.cors`；Gateway 不透传下游服务的 `Access-Control-*` 响应头，Nginx 不重复生成 CORS 响应头。
 
 `/health` 中 `source` 为 `fallback` 表示 Account 尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。
 
