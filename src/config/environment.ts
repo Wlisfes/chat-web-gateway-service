@@ -4,6 +4,7 @@ import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
 export function validateEnvironment(environment: Record<string, unknown>): Record<string, unknown> {
     parsePort(environment.PORT, 5000, 'PORT')
     parsePort(environment.NACOS_REGISTER_PORT ?? environment.PORT, 5000, 'NACOS_REGISTER_PORT')
+    parsePositiveNumber(environment.NACOS_REGISTER_WEIGHT, 1, 'NACOS_REGISTER_WEIGHT')
     parsePositiveInteger(environment.GATEWAY_PROXY_TIMEOUT_MS, 30_000, 'GATEWAY_PROXY_TIMEOUT_MS')
     parseNonNegativeInteger(environment.RATE_LIMIT_MAX, 300, 'RATE_LIMIT_MAX')
     parsePositiveInteger(environment.RATE_LIMIT_WINDOW_MS, 60_000, 'RATE_LIMIT_WINDOW_MS')
@@ -69,6 +70,9 @@ export function validateRemoteConfig(config: Record<string, unknown>): void {
     const registration = getOptionalRecord(nacos?.registration, 'nacos.registration')
     if (registration) {
         getBoolean(registration.enabled, true)
+        if (registration.weight !== undefined) {
+            parsePositiveNumber(registration.weight, 1, 'nacos.registration.weight')
+        }
         if (registration.serviceName !== undefined) {
             getRequiredString(registration.serviceName, 'nacos.registration.serviceName')
         }
@@ -85,6 +89,10 @@ export function getPositiveInteger(value: unknown, fallback: number, name: strin
 
 export function getNonNegativeInteger(value: unknown, fallback: number, name: string): number {
     return parseNonNegativeInteger(value, fallback, name)
+}
+
+export function getPositiveNumber(value: unknown, fallback: number, name: string): number {
+    return parsePositiveNumber(value, fallback, name)
 }
 
 export function getBoolean(value: unknown, fallback: boolean): boolean {
@@ -275,6 +283,14 @@ function parseNonNegativeInteger(value: unknown, fallback: number, name: string)
     const parsed = value === undefined || value === null || value === '' ? fallback : Number(value)
     if (!Number.isInteger(parsed) || parsed < 0) {
         throw new Error(`${name} 必须是非负整数`)
+    }
+    return parsed
+}
+
+function parsePositiveNumber(value: unknown, fallback: number, name: string): number {
+    const parsed = value === undefined || value === null || value === '' ? fallback : Number(value)
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 10_000) {
+        throw new Error(`${name} 必须是大于 0 且不超过 10000 的有限数值`)
     }
     return parsed
 }

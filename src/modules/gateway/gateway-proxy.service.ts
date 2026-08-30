@@ -8,7 +8,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 import type { RequestHandler as ProxyRequestHandler } from 'http-proxy-middleware'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
-import { NacosService } from '@/modules/nacos/nacos.service'
+import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
 
 type UpgradeableProxy = ProxyRequestHandler & {
     upgrade: (request: Request, socket: Socket, head: Buffer) => void

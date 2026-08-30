@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：统一使用共享 Nacos 运行时
+
+- 影响机器：`chat-home-server`（待本次 Gateway 提交合并 `main` 后生效）。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.17`；Gateway 已完成依赖升级，当前运行中的镜像不变。
+- 变更内容：删除 Gateway 内置的 Nacos 配置、注册和发现实现，改由共享包 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))` 统一提供；路由预热、健康实例统计和加权后备解析继续由共享 `NacosService` 完成。Nacos Data ID、Group、Namespace、路由和端口不变。
+- 机器侧操作：合并 `main` 后重新构建并部署 Gateway；无需修改 Nacos 数据或基础设施端口。
+- 验证命令：执行 `yarn format:check`、`yarn build`、`yarn test`；部署后验证 `/health/live`、`/health/ready` 以及 `/api/account`、`/api/finance`、`/api/crm`、`/api/skyline` 路由。
+- 回滚方法：恢复上一版 Gateway 完整 Git SHA 和共享包版本；不回滚 Nacos 配置、服务实例或业务数据。
+
 ## 2026-08-30：修复 RabbitMQ 与 Kafka 公网 TCP 转发端口冲突
 
 - 影响范围：`chat-home-server` 本机 Docker RabbitMQ/Kafka、WireGuard 端口代理、云端 Nginx stream 公网入口。
