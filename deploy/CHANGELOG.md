@@ -1,5 +1,32 @@
 # 部署变更记录
 
+## 2026-08-30：统一使用共享 Nacos 运行时
+
+- 影响机器：`chat-home-server`（待本次 Gateway 提交合并 `main` 后生效）。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.17`；Gateway 已完成依赖升级，当前运行中的镜像不变。
+- 变更内容：删除 Gateway 内置的 Nacos 配置、注册和发现实现，改由共享包 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))` 统一提供；路由预热、健康实例统计和加权后备解析继续由共享 `NacosService` 完成。Nacos Data ID、Group、Namespace、路由和端口不变。
+- 机器侧操作：合并 `main` 后重新构建并部署 Gateway；无需修改 Nacos 数据或基础设施端口。
+- 验证命令：执行 `yarn format:check`、`yarn build`、`yarn test`；部署后验证 `/health/live`、`/health/ready` 以及 `/api/account`、`/api/finance`、`/api/crm`、`/api/skyline` 路由。
+- 回滚方法：恢复上一版 Gateway 完整 Git SHA 和共享包版本；不回滚 Nacos 配置、服务实例或业务数据。
+
+## 2026-08-30：修复 RabbitMQ 与 Kafka 公网 TCP 转发端口冲突
+
+- 影响范围：`chat-home-server` 本机 Docker RabbitMQ/Kafka、WireGuard 端口代理、云端 Nginx stream 公网入口。
+- 变更内容：RabbitMQ AMQP 宿主机发布端口固定为 `127.0.0.1:15674`（容器 `5672`），管理端口固定为 `127.0.0.1:15673`（容器 `15672`）；Kafka 宿主机发布端口固定为 `127.0.0.1:19092`（容器 `9092`）。WireGuard 端口代理改为 `18081→15674`、`18082→15673`、`18083→19092`，Redis 的 `18080→16379` 保持不变。公网端口仍为 RabbitMQ `5672`/`15672` 和 Kafka `9092`。
+- 脚本变更：`allow-wireguard-infrastructure.ps1` 清理旧的 `10.66.0.2:5672`、`10.66.0.2:15672`、`10.66.0.2:9092` 监听及 Redis 历史规则，仅在 `chat-web-home` 接口放行 `18080`–`18083` 等必要入口。
+- 机器侧操作：更新基础设施 Compose 后分别重建 RabbitMQ、Kafka（禁止 `docker compose down -v`，保留数据卷）；以管理员运行端口代理脚本；将云端 Nginx stream 上游改为 `10.66.0.2:18081`（AMQP）、`10.66.0.2:18082`（管理 TCP）、`10.66.0.2:18083`（Kafka），管理台 HTTPS 继续经本机 Nginx `80` 转发到 `chat-web-rabbitmq:15672`。云端配置使用只读 bind mount，原子替换后需强制重建 `chat-web-cloud-nginx`。
+- 验证：执行 `docker inspect chat-web-rabbitmq --format '{{json .HostConfig.PortBindings}}'`、`docker inspect chat-web-kafka --format '{{json .HostConfig.PortBindings}}'`、`netsh interface portproxy show v4tov4`；确认三条新代理存在且旧监听不存在。公网分别使用 AMQP 客户端、RabbitMQ 管理台和 Kafka `ApiVersions` 握手验证，不能只依据 TCP 探测。
+- 回滚方法：停止公网 RabbitMQ/Kafka 客户端，恢复云端 Nginx 原上游并重新加载；删除 `18081`–`18083` portproxy，将 Compose 宿主机端口恢复为原配置后仅重建对应容器。不得删除 RabbitMQ/Kafka 数据卷。
+
+## 2026-08-30：修复 Redis 公网 TCP 转发端口冲突
+
+- 影响范围：`chat-home-server` 本机 Docker Redis、WireGuard 端口代理、云端 Nginx stream 公网 Redis 入口。
+- 关联版本：本机基础设施 Compose 配置；Gateway 部署脚本与运行手册。
+- 变更内容：Redis 宿主机发布端口固定为 `127.0.0.1:16379`，容器端口仍为 `6379`；WireGuard 仅开放并监听 `10.66.0.2:18080`，再转发到回环 `16379`；公网 `chat-web-redis.lisfes.cn:6379` 由云端 Nginx 转发到 `10.66.0.2:18080`。端口代理脚本改为幂等清理旧的 `6379`/`16379` Redis 监听规则，并将防火墙放行端口加入 `18080`。
+- 机器侧操作：更新本机基础设施 Compose 后仅重建 Redis 容器（禁止 `down -v`），确认外部卷 `20260801231547_redis-data` 保留；运行 `allow-wireguard-infrastructure.ps1`；将云端 `/opt/chat-web-cloud/nginx.conf` 的 Redis 上游改为 `10.66.0.2:18080`，因配置是只读 bind mount，使用 `docker compose -p chat-web-cloud -f /opt/chat-web-cloud/compose.yml up -d --no-deps --force-recreate web` 重新挂载后再验证健康状态。Docker 内服务继续使用 `chat-web-redis:6379`，宿主机程序使用 `127.0.0.1:16379`。
+- 验证：执行 `docker inspect chat-web-redis --format '{{json .HostConfig.PortBindings}}'`、`netsh interface portproxy show v4tov4`、`Test-NetConnection chat-web-redis.lisfes.cn -Port 6379`；从云端执行 `nc -vz 10.66.0.2 18080`，并使用明文 Redis 客户端完成认证后 `PING` 返回 `PONG`。确认不存在旧 `10.66.0.2:6379`/`10.66.0.2:16379` 监听规则。
+- 回滚方法：停止公网 Redis 客户端，在云端恢复 Nginx 原上游并 reload；删除 `10.66.0.2:18080` 代理，将 Compose 发布端口恢复为 `127.0.0.1:6379:6379` 后重建 Redis。仅使用原外部数据卷恢复，不执行 `docker compose down -v` 或删除 Redis 数据卷。
+
 ## 2026-08-30：废弃管理端 Platform 请求头
 
 - 影响机器：`chat-home-server` 与公网 Gateway。

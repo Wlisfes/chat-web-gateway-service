@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
+import { forRootNacosRuntimeOptions, NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
 import { validateEnvironment } from '@/config/environment'
 import { ServiceConfigModule } from '@/modules/config/config.module'
 import { GatewayModule } from '@/modules/gateway/gateway.module'
-import { NacosModule } from '@/modules/nacos/nacos.module'
 
 @Module({
     imports: [
@@ -15,7 +15,7 @@ import { NacosModule } from '@/modules/nacos/nacos.module'
             validate: validateEnvironment
         }),
         ServiceConfigModule,
-        NacosModule,
+        NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
         GatewayModule
     ]
 })

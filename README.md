@@ -9,7 +9,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 - `/api/finance/**` 优先转发到 `chat-web-finance-service`，转发时移除 `/api/finance` 前缀。
 - `/api/crm/**` 转发到 `chat-web-crm-service`，转发时移除 `/api/crm` 前缀。
 - `/api/skyline/**` 转发到 `chat-web-skyline-service`，转发时移除 `/api/skyline` 前缀。
-- 使用 Nacos 发现健康服务实例，并在多个实例之间轮询。
+- 使用共享 `@wlisfes/chat-web-base-schema` Nacos 运行时发现健康服务实例，并按实例权重平滑轮询。
 - Nacos 不可用或没有健康实例时，使用各路由对应的 `*_SERVICE_URL` 后备地址。
 - 网关自身可注册到 Nacos，并在退出时注销临时实例。
 - 支持普通 HTTP 请求和 WebSocket Upgrade 转发。
@@ -54,6 +54,8 @@ yarn dev
 
 根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`。
 
+网关不再维护独立的 Nacos 客户端或模块；配置加载、服务注册、实例订阅、健康状态和后备解析均由共享包 `@wlisfes/chat-web-base-schema@1.4.17` 的 `NacosService` 提供。网关只通过 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))` 接入。
+
 本地开发同样连接云端 Nacos，当前暂时使用正式 Data ID；根目录 `.env` 只填写以下 Nacos 参数：
 
 ```dotenv
@@ -61,6 +63,8 @@ NACOS_SERVER=chat-web-nacos.lisfes.cn:8848
 NACOS_NAMESPACE=replace-with-nacos-namespace-id
 NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
 ```
+
+网关注册到 Nacos 时可通过 `NACOS_REGISTER_WEIGHT` 覆盖实例权重，默认值为 `1`；该值支持有限正数和小数，权重越大越优先接收请求。由于当前 Node.js Nacos SDK 会将注册参数 `0` 回退为 `1`，启动变量不能使用 `0` 停用实例；如需停用，应在 Nacos 控制台将实例权重调整为 `0` 或直接下线实例。网关按控制台返回的实例权重执行平滑加权轮询，并排除权重为 `0` 的实例。
 
 ## 健康检查
 
