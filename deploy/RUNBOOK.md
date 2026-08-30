@@ -43,25 +43,40 @@ Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负
 | `chat-web-nacos`    | `chat-web-nacos.lisfes.cn`    | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848` |
 | `chat-web-dozzle`   | `chat-web-dozzle.lisfes.cn`   | HTTPS `443`                                         |
 | `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443`                 |
-| `chat-web-redis`    | `chat-web-redis.lisfes.cn`    | Redis TCP `6379`                                    |
+| `chat-web-redis`    | `chat-web-redis.lisfes.cn`    | Redis TCP 公网 `6379`（WireGuard `18080`，本机回环 `16379`） |
 | `chat-web-kafka`    | `chat-web-kafka.lisfes.cn`    | Kafka TCP `9092`                                    |
 
-开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口，禁止向全网开放。
+开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。Redis 的公网链路为 `chat-web-redis.lisfes.cn:6379` → 云端 Nginx → WireGuard `10.66.0.2:18080` → 本机 `127.0.0.1:16379` → 容器 `6379`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口，禁止向全网开放。
 
 验证云端入口：
 
 ```powershell
 Test-NetConnection chat-web-mysql.lisfes.cn -Port 3306
 mysql -h chat-web-mysql.lisfes.cn -P 3306 -u chat -p
+Test-NetConnection chat-web-redis.lisfes.cn -Port 6379
 ```
+
+Redis 客户端使用明文连接（不要使用 `rediss://`），填写域名端口 `6379` 和 Redis 密码；本机宿主程序直连时使用 `127.0.0.1:16379`，Docker 内服务继续使用 `chat-web-redis:6379`。云端 Nginx 的 stream 上游必须是 `10.66.0.2:18080`，不能再指向 `10.66.0.2:6379`。
+
+云端 Nginx 配置通过只读 bind mount `/opt/chat-web-cloud/nginx.conf:/etc/nginx/nginx.conf:ro` 使用。若采用原子替换（先上传临时文件再 `mv`）更新配置，运行中的容器仍可能持有旧 inode；替换后必须执行 `docker compose -p chat-web-cloud -f /opt/chat-web-cloud/compose.yml up -d --no-deps --force-recreate web`，再检查容器内配置哈希和健康状态。仅 `nginx -s reload` 适用于直接修改同一个 inode 的场景。
 
 这些基础设施入口都是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2` 的连通性及本机防火墙。RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`，Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`。
 
-本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本还会幂等创建 `10.66.0.2` 到本机 Docker 发布端口的代理。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
+本机 Windows 防火墙只允许 WireGuard 接口访问这些端口。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建 `10.66.0.2:18080` 到 Redis 本机回环端口 `127.0.0.1:16379` 的代理，并清理旧的 Redis `6379`/`16379` 监听规则；其他基础设施端口仍按同端口转发。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File F:\chat-web-service\chat-web-gateway-service\deploy\allow-wireguard-infrastructure.ps1
 ```
+
+确认 Redis 映射和旧规则清理：
+
+```powershell
+docker inspect chat-web-redis --format '{{json .HostConfig.PortBindings}}'
+netsh interface portproxy show v4tov4
+Test-NetConnection chat-web-redis.lisfes.cn -Port 6379
+```
+
+预期 Redis 容器仅发布 `127.0.0.1:16379`，portproxy 存在 `10.66.0.2:18080 -> 127.0.0.1:16379`，且不存在 `10.66.0.2:6379` 或 `10.66.0.2:16379` 的旧监听规则。若仅 TCP 成功但 RedisInsight 仍提示无法连接，应从云端执行 `nc -vz 10.66.0.2 18080`，再检查云端 Nginx stream 上游和 WireGuard 防火墙；认证失败时只重新填写密码，不启用 TLS。
 
 日志页首屏优化由本机 Nginx 完成：静态 JS、CSS、字体和图片启用 gzip、缓冲和一年 immutable 缓存，日志流路径保持 `proxy_buffering off` 与 3600 秒长连接超时。验证命令：
 
@@ -150,6 +165,7 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 | Account 转发 502      | Account 容器不可达且 Nacos 无健康实例     | 检查 Account 健康和 Docker 网络                            |
 | `healthyInstances: 0` | Account 尚未注册到 Nacos                  | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
 | 管理端 CORS 预检失败  | Nacos 未启用凭据或未允许管理端 Origin     | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头 |
+| Redis 域名连接超时    | 云端仍转发到旧的 6379，或本机 18080 代理缺失 | 确认云端上游为 `10.66.0.2:18080`，重跑端口代理脚本并检查 16379 映射 |
 
 ## 恢复顺序
 
@@ -161,3 +177,7 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 6. 验证镜像 SHA、Gateway 健康和 Account 转发。
 
 每次处理完成后，把新原因和恢复命令补充到 `deploy/CHANGELOG.md`。
+
+### Redis 公网转发回滚
+
+若需要回滚 Redis 转发改造，先停止依赖公网 Redis 的客户端，再在云端 Nginx stream 中恢复原上游并 reload；本机删除 `10.66.0.2:18080` portproxy 后，将 Compose 发布端口恢复为 `127.0.0.1:6379:6379`，执行 Redis 容器重建并确认外部数据卷未被删除。回滚期间 Docker 内服务仍使用 `chat-web-redis:6379`，不要执行 `docker compose down -v` 或删除 `20260801231547_redis-data` 卷。

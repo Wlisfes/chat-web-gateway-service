@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-30：修复 Redis 公网 TCP 转发端口冲突
+
+- 影响范围：`chat-home-server` 本机 Docker Redis、WireGuard 端口代理、云端 Nginx stream 公网 Redis 入口。
+- 关联版本：本机基础设施 Compose 配置；Gateway 部署脚本与运行手册。
+- 变更内容：Redis 宿主机发布端口固定为 `127.0.0.1:16379`，容器端口仍为 `6379`；WireGuard 仅开放并监听 `10.66.0.2:18080`，再转发到回环 `16379`；公网 `chat-web-redis.lisfes.cn:6379` 由云端 Nginx 转发到 `10.66.0.2:18080`。端口代理脚本改为幂等清理旧的 `6379`/`16379` Redis 监听规则，并将防火墙放行端口加入 `18080`。
+- 机器侧操作：更新本机基础设施 Compose 后仅重建 Redis 容器（禁止 `down -v`），确认外部卷 `20260801231547_redis-data` 保留；运行 `allow-wireguard-infrastructure.ps1`；将云端 `/opt/chat-web-cloud/nginx.conf` 的 Redis 上游改为 `10.66.0.2:18080`，因配置是只读 bind mount，使用 `docker compose -p chat-web-cloud -f /opt/chat-web-cloud/compose.yml up -d --no-deps --force-recreate web` 重新挂载后再验证健康状态。Docker 内服务继续使用 `chat-web-redis:6379`，宿主机程序使用 `127.0.0.1:16379`。
+- 验证：执行 `docker inspect chat-web-redis --format '{{json .HostConfig.PortBindings}}'`、`netsh interface portproxy show v4tov4`、`Test-NetConnection chat-web-redis.lisfes.cn -Port 6379`；从云端执行 `nc -vz 10.66.0.2 18080`，并使用明文 Redis 客户端完成认证后 `PING` 返回 `PONG`。确认不存在旧 `10.66.0.2:6379`/`10.66.0.2:16379` 监听规则。
+- 回滚方法：停止公网 Redis 客户端，在云端恢复 Nginx 原上游并 reload；删除 `10.66.0.2:18080` 代理，将 Compose 发布端口恢复为 `127.0.0.1:6379:6379` 后重建 Redis。仅使用原外部数据卷恢复，不执行 `docker compose down -v` 或删除 Redis 数据卷。
+
 ## 2026-08-30：废弃管理端 Platform 请求头
 
 - 影响机器：`chat-home-server` 与公网 Gateway。
