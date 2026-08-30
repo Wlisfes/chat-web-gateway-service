@@ -1,5 +1,19 @@
 # Repository instructions
 
+本文件在本仓库内独立生效，不依赖 `F:/chat-web-service/AGENTS.md` 或其他工作区文件。
+
+## 通用工程规则
+
+- 使用 Node.js 22、Yarn 1.22.22、NestJS 11 和 TypeScript；源码使用 UTF-8，Shell、YAML 和 Dockerfile 使用 LF。
+- 统一使用 4 空格、无分号、单引号、`printWidth: 140`、无尾随逗号；内部源码统一使用 `@/*` 路径别名。
+- 文件名使用小写 kebab-case 和职责后缀；类、接口、枚举使用 PascalCase，变量、函数使用 camelCase，常量和注入 Token 使用 UPPER_SNAKE_CASE。
+- 日志、校验消息、Swagger 描述和面向维护者的错误信息使用中文，代码标识符使用英文。
+- HTTP Controller 只允许 GET、POST；GET 使用 query，POST 使用 body；多选参数必须是数组，禁止使用 `/:uid` 等路径参数。
+- 请求日志必须包含 logId、方法、URL、状态码、来源、入参和耗时，并脱敏密码、Token 等敏感字段。
+- Gateway 只负责路由、认证基础能力、限流、日志和服务发现，不连接业务数据库或读取业务 Redis。
+- `.env.example` 只列出启动所需参数和明确占位符；真实密钥、Token、私钥和生产 `.env` 不得提交。
+- 每次改动至少执行格式检查、TypeScript 类型检查和 Nest 构建；涉及代理、服务发现或部署时增加运行级验证。
+
 ## 单机部署规则
 
 - 本服务只部署到当前主机 `chat-home-server`，原另一台部署机器已废弃并下线，不得再为废弃机器创建部署任务或多机矩阵。
@@ -23,6 +37,10 @@
 - 服务端口、Docker 网络、健康检查和 Runner 配置
 
 排障命令和当前运行基线维护在 `deploy/RUNBOOK.md`。
+
+## 分支生命周期
+
+- 远程仓库只保留 `main`、`developer` 两个长期分支；临时需求分支必须先合并到 `developer`，发布时同步合并到 `main`，合并并验证通过后立即删除远程和本地临时分支。
 
 ## 服务数据边界
 
