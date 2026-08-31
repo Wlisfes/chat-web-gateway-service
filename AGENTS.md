@@ -49,6 +49,19 @@
 - 跨服务调用必须按 Nacos 服务名或显式服务地址转发到服务 API；需要聚合业务数据时使用强类型 HTTP 客户端 Provider，不得执行跨库 SQL。
 - 若网关自身未来需要缓存，必须先分配独立 Redis index，禁止复用 Account index `0` 或 Finance index `1`。
 
+## HTTP Controller 与 Service 编码基准
+
+- `chat-web-account-service/src/modules/menu/` 是 Controller、Service、DTO、Utils Service 和 Module 组织方式的唯一基准；网关按基础设施边界适配，不得另建接口风格。
+- Controller 必须保持为薄协议层：只声明路由、权限、Swagger/Apifox 元数据，接收 `query`、`body` 或必要请求/响应上下文，并将参数原样交给同名 Service 方法；禁止在 Controller 内实现业务判断、业务数据组装、配置解析、服务发现或代理调度。Cookie、响应头、重定向和流式响应等纯 HTTP 协议操作可以留在 Controller，但不得把 `Request`、`Response` 或响应发送逻辑传入业务 Service。
+- Controller 与对应 Service 的公开 HTTP 方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseGateway<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseGateway<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountMenuTree`、`httpBaseAccountMenuResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 直接返回同名 Service 调用结果，禁止再调用 `create`、`list`、`findOne`、`update` 等另一套短方法。
+- GET 只接收 `@Query()` DTO，POST 只接收 `@Body()` DTO；无请求 DTO 的接口不制造空 DTO。每个接口必须使用 `ApiServiceDecorator` 完整声明请求来源、请求 DTO、响应 DTO、数组标识和中文说明；重定向等原始响应必须明确关闭统一响应外壳。
+- Service 负责业务编排，公开 HTTP 方法必须添加简洁中文职责注释并显式声明 `Promise<...>` 返回类型；健康检查、网关信息和文档重定向数据也由 Service 返回，Controller 不得内联对象。模块请求 DTO 在 Service 中优先使用 `import * as XxxDto` 归组引用。
+- DTO 和接口枚举放在模块 `dto/` 目录，优先通过共享基础 DTO 复用字段；字段必须提供 Swagger 示例/说明、必要的类型转换和中文校验消息。分页 DTO 使用公共 `PageDto`，响应固定为 `page`、`size`、`total`、`list`。
+- 若项目数据边界允许实体查询，必须优先使用公共 `DataBaseService.builder`，QueryBuilder 别名固定为 `t`；网关当前仍禁止连接业务数据库或为此重复封装 QueryBuilder。
+- 仅当查找、校验、锁、树结构或可复用转换形成独立职责时才创建 `<module>.utils.service.ts`，使用 `@Injectable()` 并由 Module 注册注入；仅调用一次且无复用价值的简单步骤不得机械拆成 Utils Service。Module 按 `imports`、`controllers`、`providers`、`exports` 组织。
+- 普通业务可选入参统一使用 `class-validator` 的 `isEmpty`、`isNotEmpty` 判空，禁止手写 `input.xxx !== undefined && ...` 或用隐式 truthy/falsy 代替。只有必须区分“未传、显式 null、具体值”的三态字段可以直接判断 `undefined`，且必须紧邻中文语义说明；基础设施配置、代理协议、第三方返回值、布尔值、集合长度及已确认非空值比较不受此限制。
+- 重构不得改变公开路由、代理前缀、HTTP 状态、响应结构、异常消息和 Nacos 服务发现行为。
+
 ## Git 提交规范
 
 - 所有提交信息必须使用 Conventional Commits 类型前缀，格式固定为 `<type>: 中文摘要`；如需填写作用域，使用 `<type>(<scope>): 中文摘要`。

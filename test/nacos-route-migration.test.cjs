@@ -94,7 +94,10 @@ test('Nacos 迁移兼容两空格缩进和行内 Origin 数组', () => {
 
     const migrated = migrateManagerCors(content)
 
-    assert.match(migrated, /  cors:\n    allowedOrigins:\n      - https:\/\/chat\.lisfes\.cn\n      - https:\/\/old\.example\.com\n    credentials: true/)
+    assert.match(
+        migrated,
+        /  cors:\n    allowedOrigins:\n      - https:\/\/chat\.lisfes\.cn\n      - https:\/\/old\.example\.com\n    credentials: true/
+    )
     assert.doesNotMatch(migrated, /allowedOrigins: \[/)
     assert.match(migrated, /  routes:\n    - id: account/)
 })

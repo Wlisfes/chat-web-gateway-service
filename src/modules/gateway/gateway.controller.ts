@@ -22,42 +22,39 @@ export class GatewayController {
         }
     })
     @Redirect('/doc.html', 302)
-    openDocumentation() {
-        return { url: '/doc.html' }
+    public async httpBaseGatewayDocumentation(): Promise<DocumentationRedirectResponseDto> {
+        return this.gatewayService.httpBaseGatewayDocumentation()
     }
 
     @ApiServiceDecorator(Get('gateway'), {
         operation: { summary: '查看网关信息及已配置路由' },
         response: { type: GatewayInfoResponseDto, description: '网关信息及路由列表' }
     })
-    getInfo() {
-        return this.gatewayService.getInfo()
+    public async httpBaseGatewayInfo(): Promise<GatewayInfoResponseDto> {
+        return this.gatewayService.httpBaseGatewayInfo()
     }
 
     @ApiServiceDecorator(Get('health'), {
         operation: { summary: '网关健康检查' },
         response: { type: GatewayHealthResponseDto, description: '网关及服务发现状态' }
     })
-    getHealth() {
-        return this.gatewayService.getHealth()
+    public async httpBaseGatewayHealth(): Promise<GatewayHealthResponseDto> {
+        return this.gatewayService.httpBaseGatewayHealth()
     }
 
     @ApiServiceDecorator(Get('health/live'), {
         operation: { summary: '网关存活检查' },
         response: { type: GatewayLivenessResponseDto, description: '进程正常时返回 UP' }
     })
-    getLiveness() {
-        return {
-            status: 'UP',
-            timestamp: new Date().toISOString()
-        }
+    public async httpBaseGatewayLiveness(): Promise<GatewayLivenessResponseDto> {
+        return this.gatewayService.httpBaseGatewayLiveness()
     }
 
     @ApiServiceDecorator(Get('health/ready'), {
         operation: { summary: '网关就绪检查' },
         response: { type: GatewayHealthResponseDto, description: '网关路由及服务发现状态' }
     })
-    getReadiness() {
-        return this.gatewayService.getHealth()
+    public async httpBaseGatewayReadiness(): Promise<GatewayHealthResponseDto> {
+        return this.gatewayService.httpBaseGatewayReadiness()
     }
 }

@@ -1,6 +1,12 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
 import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
+import {
+    DocumentationRedirectResponseDto,
+    GatewayHealthResponseDto,
+    GatewayInfoResponseDto,
+    GatewayLivenessResponseDto
+} from '@/modules/gateway/dto/gateway-response.dto'
 
 @Injectable()
 export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -12,14 +18,14 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
         private readonly nacosService: NacosService
     ) {}
 
-    async onApplicationBootstrap(): Promise<void> {
+    public async onApplicationBootstrap(): Promise<void> {
         await this.refreshRoutes()
         this.removeConfigListener = this.nacosService.onConfigChange(() => {
             void this.refreshRoutes().catch(() => undefined)
         })
     }
 
-    onModuleDestroy(): void {
+    public onModuleDestroy(): void {
         this.removeConfigListener?.()
     }
 
@@ -33,7 +39,13 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
         return refresh
     }
 
-    getInfo() {
+    /**Knife4j 聚合文档重定向信息。*/
+    public async httpBaseGatewayDocumentation(): Promise<DocumentationRedirectResponseDto> {
+        return { url: '/doc.html' }
+    }
+
+    /**网关信息及已配置路由。*/
+    public async httpBaseGatewayInfo(): Promise<GatewayInfoResponseDto> {
         return {
             name: 'chat-web-gateway-service',
             description: 'Chat Web 微服务统一 API 网关',
@@ -48,7 +60,8 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
         }
     }
 
-    getHealth() {
+    /**网关及服务发现健康状态。*/
+    public async httpBaseGatewayHealth(): Promise<GatewayHealthResponseDto> {
         const discovery = this.nacosService.getStatus()
         return {
             status: 'UP',
@@ -64,5 +77,18 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
                 }
             })
         }
+    }
+
+    /**网关进程存活状态。*/
+    public async httpBaseGatewayLiveness(): Promise<GatewayLivenessResponseDto> {
+        return {
+            status: 'UP',
+            timestamp: new Date().toISOString()
+        }
+    }
+
+    /**网关路由及服务发现就绪状态。*/
+    public async httpBaseGatewayReadiness(): Promise<GatewayHealthResponseDto> {
+        return this.httpBaseGatewayHealth()
     }
 }

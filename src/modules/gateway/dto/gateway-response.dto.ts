@@ -70,12 +70,12 @@ export class GatewayRouteHealthResponseDto {
     healthyInstances: number
 
     @ApiProperty({ description: '路由目标来源', enum: ['nacos', 'fallback'], example: 'nacos' })
-    source: string
+    source: 'nacos' | 'fallback'
 }
 
 export class GatewayLivenessResponseDto {
     @ApiProperty({ description: '网关状态', enum: ['UP'], example: 'UP' })
-    status: string
+    status: 'UP'
 
     @ApiProperty({ description: '检查时间', example: '2026-08-23T04:00:00.000Z' })
     timestamp: string
