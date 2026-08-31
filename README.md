@@ -54,7 +54,7 @@ yarn dev
 
 根目录 `.env` 只保存 `NODE_ENV`、`PORT` 和 Nacos 连接参数。网关路由、后备地址、跨域、限流和注册发现配置统一维护在 Nacos 远端 `chat-web-gateway-service.yaml`。
 
-网关不再维护独立的 Nacos 客户端或模块；配置加载、服务注册、实例订阅、健康状态和后备解析均由共享包 `@wlisfes/chat-web-base-schema@1.4.17` 的 `NacosService` 提供。网关只通过 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))` 接入。
+网关不再维护独立的 Nacos 客户端或模块；配置加载、服务注册、实例订阅、健康状态和后备解析均由共享包 `@wlisfes/chat-web-base-schema@1.4.19` 的 `NacosService` 提供。网关只通过 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))` 接入。
 
 本地开发同样连接云端 Nacos，当前暂时使用正式 Data ID；根目录 `.env` 只填写以下 Nacos 参数：
 
