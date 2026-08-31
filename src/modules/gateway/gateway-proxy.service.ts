@@ -98,7 +98,7 @@ export class GatewayProxyService {
                 error: (error, request, response) => {
                     const route = this.matchedRoutes.get(request as Request) ?? this.findRoute(request as Request)
                     this.logger.error(
-                        `${request.method ?? 'UPGRADE'} ${request.url ?? ''} -> ${route?.serviceName ?? 'unknown'}：${error.message}`
+                        `${request.method ?? 'UPGRADE'} ${request.originalUrl || request.url || ''} -> ${route?.serviceName ?? 'unknown'}：${error.message}`
                     )
 
                     if ('writeHead' in response && 'end' in response) {
