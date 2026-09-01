@@ -51,9 +51,9 @@
 
 ## HTTP Controller 与 Service 编码基准
 
-- `chat-web-account-service/src/modules/menu/` 是 Controller、Service、DTO、Utils Service 和 Module 组织方式的唯一基准；网关按基础设施边界适配，不得另建接口风格。
+- `chat-web-account-service/src/modules/sheet/` 是 Controller、Service、DTO、Utils Service 和 Module 组织方式的唯一基准；网关按基础设施边界适配，不得另建接口风格。
 - Controller 必须保持为薄协议层：只声明路由、权限、Swagger/Apifox 元数据，接收 `query`、`body` 或必要请求/响应上下文，并将参数原样交给同名 Service 方法；禁止在 Controller 内实现业务判断、业务数据组装、配置解析、服务发现或代理调度。Cookie、响应头、重定向和流式响应等纯 HTTP 协议操作可以留在 Controller，但不得把 `Request`、`Response` 或响应发送逻辑传入业务 Service。
-- Controller 与对应 Service 的公开 HTTP 方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseGateway<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseGateway<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountMenuTree`、`httpBaseAccountMenuResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 直接返回同名 Service 调用结果，禁止再调用 `create`、`list`、`findOne`、`update` 等另一套短方法。
+- Controller 与对应 Service 的公开 HTTP 方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseGateway<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseGateway<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountSheetTree`、`httpBaseAccountSheetResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 直接返回同名 Service 调用结果，禁止再调用 `create`、`list`、`findOne`、`update` 等另一套短方法。
 - GET 只接收 `@Query()` DTO，POST 只接收 `@Body()` DTO；无请求 DTO 的接口不制造空 DTO。每个接口必须使用 `ApiServiceDecorator` 完整声明请求来源、请求 DTO、响应 DTO、数组标识和中文说明；重定向等原始响应必须明确关闭统一响应外壳。
 - Service 负责业务编排，公开 HTTP 方法必须添加简洁中文职责注释并显式声明 `Promise<...>` 返回类型；健康检查、网关信息和文档重定向数据也由 Service 返回，Controller 不得内联对象。模块请求 DTO 在 Service 中优先使用 `import * as XxxDto` 归组引用。
 - DTO 和接口枚举放在模块 `dto/` 目录，优先通过共享基础 DTO 复用字段；字段必须提供 Swagger 示例/说明、必要的类型转换和中文校验消息。分页 DTO 使用公共 `PageDto`，响应固定为 `page`、`size`、`total`、`list`。
