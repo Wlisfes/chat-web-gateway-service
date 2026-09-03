@@ -8,14 +8,14 @@
     "scripts": {
         "install": "node scripts/yarn-auth.cjs install --ignore-scripts",
         "build": "nest build",
-        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.cjs\" \".github/workflows/*.yml\"",
-        "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.cjs\" \".github/workflows/*.yml\"",
+        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \".github/workflows/*.yml\"",
+        "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \".github/workflows/*.yml\"",
         "test": "yarn test:unit",
         "test:unit": "node --test test/*.test.cjs",
         "test:full": "yarn build && yarn test:unit",
-        "start": "nest start",
-        "dev": "nest start --watch",
-        "debug": "nest start --debug --watch",
+        "start": "node scripts/start-with-cluster-port.cjs start",
+        "dev": "node scripts/start-with-cluster-port.cjs start --watch",
+        "debug": "node scripts/start-with-cluster-port.cjs start --debug --watch",
         "start:prod": "node dist/main"
     },
     "dependencies": {
