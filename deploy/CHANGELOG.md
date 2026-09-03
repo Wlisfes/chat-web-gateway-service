@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-02：更新 Account 模块路由验证
+
+- 影响机器：`chat-home-server`；本次仅更新测试与规约，未合并 `main` 或触发部署。
+- 关联版本：Gateway 与 Account 的本次 `developer` 分支提交。
+- 变更内容：代理回归用例改用 `/api/account/sheet/**`，验证 Gateway 保留完整公开路径并将 `/sheet/**` 转发给 Account；Account 的 `/api/account/**` 通配路由配置无需调整。
+- 机器侧操作：发布 Account 新版本后按现有 Gateway 流程验证，无需修改 Nacos 路由、Nginx 或外部网络。
+- 验证命令：执行 `yarn build`、`node test/gateway-proxy-cors.test.cjs`；部署后检查 `/api/account/health` 及 `/api/account/sheet/tree/structure`。
+- 回滚方法：恢复上一版 Gateway 与 Account 完整 Git SHA，测试和客户端路径随旧版本恢复。
+
 ## 2026-08-31：拆分快速单测与完整校验
 
 - 影响范围：Gateway 本地测试命令；部署机器运行参数不变。

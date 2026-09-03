@@ -71,16 +71,16 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
     const errors = []
 
     try {
-        const proxyResponse = await fetch(`${gatewayUrl}/api/account/menu/update?source=manager`).then(response => response.json())
+        const proxyResponse = await fetch(`${gatewayUrl}/api/account/sheet/update?source=manager`).then(response => response.json())
         assert.equal(forwardedPrefix, '/api/account')
-        assert.equal(proxyResponse.url, '/menu/update?source=manager')
+        assert.equal(proxyResponse.url, '/sheet/update?source=manager')
 
         Logger.prototype.error = message => errors.push(message)
         targetUrl = 'http://127.0.0.1:1'
-        await fetch(`${gatewayUrl}/api/account/menu/update?source=error`).then(response => response.json())
+        await fetch(`${gatewayUrl}/api/account/sheet/update?source=error`).then(response => response.json())
 
         assert.equal(errors.length, 1)
-        assert.match(errors[0], /^GET \/api\/account\/menu\/update\?source=error -> chat-web-account-service：/)
+        assert.match(errors[0], /^GET \/api\/account\/sheet\/update\?source=error -> chat-web-account-service：/)
     } finally {
         Logger.prototype.error = originalError
         await Promise.all([close(gatewayServer), close(downstreamServer)])
