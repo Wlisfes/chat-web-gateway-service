@@ -4,6 +4,7 @@ import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
 import { forRootNacosRuntimeOptions, NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
 import { validateEnvironment } from '@/config/environment'
 import { ServiceConfigModule } from '@/modules/config/config.module'
+import { GatewayAuthModule } from '@/modules/auth/gateway-auth.module'
 import { GatewayModule } from '@/modules/gateway/gateway.module'
 
 @Module({
@@ -16,6 +17,7 @@ import { GatewayModule } from '@/modules/gateway/gateway.module'
         }),
         ServiceConfigModule,
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
+        GatewayAuthModule,
         GatewayModule
     ]
 })

@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-05：迁移网关入口身份认证
+
+- 影响机器：`chat-home-server`；Gateway 与 Account 服务。
+- 关联版本：Gateway、Account 当前 `developer` 分支改动；未合并 `main`。
+- 变更内容：网关新增入口认证中间件，受保护的 `/api/**` 请求先调用 Account `/internal/auth/token/introspect`；认证客户端使用独立 HTTP 协议，不依赖业务 Feign。Account 继续负责 JWT 与 Redis Session 校验，业务服务继续执行自身权限校验。内部认证使用 `X-Service-Token`，不与用户 `Authorization` 混用。
+- 机器侧操作：在 Gateway Nacos `chat-web-gateway-service.yaml` 增加 `gateway.auth` 配置和顶层 `feign.service_token`，在 Account Nacos `chat-web-account-service.yaml` 增加相同的 `feign.service_token`；真实凭据只写入 Nacos，不写入 `.env`、仓库或流水线日志。先部署 Account，再部署 Gateway。
+- 验证命令：执行 Gateway、Account 的 `yarn build`、`yarn tsc -p tsconfig.json --noEmit` 和单元测试；部署后验证健康检查、登录/验证码公开访问、无 Token 返回 `401`、错误服务凭据返回 `401`、Account 不可用返回 `503`，并验证业务路由仍执行下游权限校验。
+- 回滚方法：恢复 Gateway 与 Account 上一版完整 Git SHA；保留 Nacos `gateway.auth` 和 `feign.service_token` 配置，不删除业务数据。回滚期间关闭 Gateway `gateway.auth.enabled` 或恢复旧镜像行为。
+
 ## 2026-09-02：更新 Account 模块路由验证
 
 - 影响机器：`chat-home-server`；本次仅更新测试与规约，未合并 `main` 或触发部署。

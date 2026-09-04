@@ -1,6 +1,6 @@
 import type { ClientRequest, IncomingMessage, Server } from 'node:http'
 import type { Socket } from 'node:net'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, Optional } from '@nestjs/common'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import { resolveRequestId } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, Request, RequestHandler, Response } from 'express'
@@ -9,6 +9,7 @@ import type { RequestHandler as ProxyRequestHandler } from 'http-proxy-middlewar
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
 import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
+import { GatewayAuthService } from '@/modules/auth/gateway-auth.service'
 
 type UpgradeableProxy = ProxyRequestHandler & {
     upgrade: (request: Request, socket: Socket, head: Buffer) => void
@@ -33,7 +34,8 @@ export class GatewayProxyService {
 
     constructor(
         private readonly serviceConfig: ServiceConfigService,
-        private readonly nacosService: NacosService
+        private readonly nacosService: NacosService,
+        @Optional() private readonly authService?: GatewayAuthService
     ) {}
 
     mount(application: Express): void {
@@ -142,7 +144,10 @@ export class GatewayProxyService {
 
             this.matchedRoutes.set(proxyRequest, route)
             request.headers['x-request-id'] = resolveRequestId(request.headers['x-request-id'])
-            this.proxy.upgrade(proxyRequest, socket as Socket, head)
+            const authenticate = this.authService?.authenticate(proxyRequest) ?? Promise.resolve(undefined)
+            void authenticate
+                .then(() => this.proxy?.upgrade(proxyRequest, socket as Socket, head))
+                .catch(() => socket.destroy())
         })
     }
 

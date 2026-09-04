@@ -11,6 +11,7 @@ import { rateLimit } from 'express-rate-limit'
 import helmet from 'helmet'
 import { knife4jSetup } from 'nestjs-knife4j-plus'
 import { AppModule } from '@/app.module'
+import { GatewayAuthService } from '@/modules/auth/gateway-auth.service'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
 
@@ -66,6 +67,16 @@ async function bootstrap(): Promise<void> {
     app.use((request, response, next) => rateLimitHandler(request, response, next))
 
     const proxyService = app.get(GatewayProxyService)
+    const gatewayAuthService = app.get(GatewayAuthService)
+    app.use(
+        '/api',
+        ((request, response, next) => {
+            void gatewayAuthService
+                .authenticate(request)
+                .then(() => next())
+                .catch(error => gatewayAuthService.writeError(response, error))
+        }) as RequestHandler
+    )
     proxyService.mount(expressApplication)
 
     const swaggerConfig = new DocumentBuilder()

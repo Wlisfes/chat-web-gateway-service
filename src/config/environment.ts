@@ -27,6 +27,32 @@ export function validateRemoteConfig(config: Record<string, unknown>): void {
 
     const gateway = getOptionalRecord(config.gateway, 'gateway')
     if (gateway) {
+        const auth = getOptionalRecord(gateway.auth, 'gateway.auth')
+        const feign = getOptionalRecord(config.feign, 'feign')
+        if (auth) {
+            const enabled = getBoolean(auth.enabled, true)
+            if (enabled) {
+                getRequiredString(feign?.service_token, 'feign.service_token')
+            }
+            if (auth.introspectionPath !== undefined) {
+                const path = getRequiredString(auth.introspectionPath, 'gateway.auth.introspectionPath')
+                if (!path.startsWith('/') || path.includes('?') || path.includes('#')) {
+                    throw new Error('gateway.auth.introspectionPath 必须是有效的内部路径')
+                }
+            }
+            if (auth.timeoutMs !== undefined) {
+                parsePositiveInteger(auth.timeoutMs, 3000, 'gateway.auth.timeoutMs')
+            }
+            if (auth.publicPaths !== undefined) {
+                if (!Array.isArray(auth.publicPaths)) throw new Error('gateway.auth.publicPaths 必须是字符串数组')
+                auth.publicPaths.forEach((path, index) => {
+                    const value = getRequiredString(path, `gateway.auth.publicPaths[${index}]`)
+                    if (!value.startsWith('/') || value.includes('?') || value.includes('#')) {
+                        throw new Error(`gateway.auth.publicPaths[${index}] 必须是有效路径`)
+                    }
+                })
+            }
+        }
         const cors = getOptionalRecord(gateway.cors, 'gateway.cors')
         if (cors) {
             const origins = parseCorsOrigins(cors.allowedOrigins, [], 'gateway.cors.allowedOrigins')
