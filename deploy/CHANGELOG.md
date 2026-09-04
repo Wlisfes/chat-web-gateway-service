@@ -9,6 +9,15 @@
 - 验证命令：执行 Gateway、Account 的 `yarn build`、`yarn tsc -p tsconfig.json --noEmit` 和单元测试；部署后验证健康检查、登录/验证码公开访问、无 Token 返回 `401`、错误服务凭据返回 `401`、Account 不可用返回 `503`，并验证业务路由仍执行下游权限校验。
 - 回滚方法：恢复 Gateway 与 Account 上一版完整 Git SHA；保留 Nacos `gateway.auth` 和 `feign.service_token` 配置，不删除业务数据。回滚期间关闭 Gateway `gateway.auth.enabled` 或恢复旧镜像行为。
 
+## 2026-09-03：本地 Nacos 客户端端口冲突自动避让
+
+- 影响范围：Gateway 本地开发启动；`chat-home-server` 的生产容器启动命令不变。
+- 关联版本：Gateway 本次 `developer` 分支提交。
+- 变更内容：`yarn dev`、`yarn start` 和 `yarn debug` 启动前检测 Nacos Node 客户端默认端口 `7777`，冲突时在 `20000-45000` 中随机选择本机可用端口并仅注入当前子进程；不修改 `.env`、Nacos 或 Docker 配置。
+- 机器侧操作：无需配置固定 `NODE_CLUSTER_CLIENT_PORT`；继续按现有 Nacos 启动参数运行。
+- 验证命令：执行 `yarn prettier --check scripts/start-with-cluster-port.cjs`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build`，并分别验证默认端口空闲和占用场景。
+- 回滚方法：恢复本次提交前的 `package.json` 并删除启动包装器；Nacos 与业务数据无需回滚。
+
 ## 2026-09-02：更新 Account 模块路由验证
 
 - 影响机器：`chat-home-server`；本次仅更新测试与规约，未合并 `main` 或触发部署。
