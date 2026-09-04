@@ -29,7 +29,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 | `/api/crm/sms/**`              | `/sms/**`          |
 | `GET /api/skyline/health/live` | `GET /health/live` |
 
-账号服务仍然负责业务鉴权、字段校验和数据访问。网关后续可以增加 JWT 的通用身份解析，但下游服务不能因此取消权限校验。
+网关现在负责入口身份认证：受保护的 `/api/**` 请求会先通过 Account 的内部认证协议校验 Bearer Token，再转发到下游服务。账号服务仍然负责签发 Token、维护 Redis 会话和撤销会话；下游服务不能因此取消自身的 Token 校验、权限校验和数据访问控制。
 
 ## 本地启动
 
@@ -80,6 +80,21 @@ Nacos 配置内容以远端 `chat-web-gateway-service.yaml` 为唯一运行来�
 
 ```yaml
 gateway:
+    # 入口身份认证配置；服务间凭据统一写在顶层 feign.service_token。
+    auth:
+        enabled: true
+        introspectionPath: /internal/auth/token/introspect
+        timeoutMs: 3000
+        publicPaths:
+            - /health
+            - /health/live
+            - /health/ready
+            - /doc.html
+            - /services.json
+            - /api/swagger
+            - /api/swagger-json
+            - /api/account/auth/codex/write
+            - /api/account/auth/token/login
     trustProxy: false
     proxy:
         timeoutMs: 30000
@@ -113,6 +128,9 @@ gateway:
           serviceName: chat-web-skyline-service
           fallbackUrl: http://chat-web-skyline-service:5040
           enabled: true
+feign:
+    # 网关调用 Account 内部认证接口使用的服务间凭据；真实值只维护在 Nacos。
+    service_token: replace-with-internal-service-token
 nacos:
     discovery:
         enabled: true
@@ -122,6 +140,10 @@ nacos:
         enabled: true
         serviceName: chat-web-gateway-service
 ```
+
+`gateway.auth.enabled` 开启后，网关会使用 Account 路由的 Nacos 服务发现或 `fallbackUrl` 请求内部认证接口。Gateway Nacos 与 Account Nacos 的 `feign.service_token` 必须使用同一个真实凭据，真实值不得提交到 Git 或写入 `.env`。网关认证接口不加入 `gateway.routes`，只能通过 Docker 内部网络或服务发现访问。
+
+`publicPaths` 用于声明不需要用户登录的网关路径；登录、验证码、健康检查和 Swagger 必须保留在列表中。新增公开接口时先更新 Nacos 配置，再验证 CORS 和未登录访问结果。认证失败返回 `401`，Account 不可用返回 `503`。
 
 跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，必须把该 Origin 加入白名单。
 

@@ -11,7 +11,7 @@ import {
     getPositiveInteger,
     parseGatewayRoutes
 } from '@/config/environment'
-import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
+import { GatewayAuthOptions, GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
 
 @Injectable()
 export class ServiceConfigService {
@@ -61,4 +61,73 @@ export class ServiceConfigService {
     getTrustProxy(): boolean {
         return getBoolean(this.configService.get('gateway.trustProxy') ?? this.configService.get('TRUST_PROXY'), false)
     }
+
+    /** 读取网关入口认证配置；未显式关闭时默认启用并要求完整服务凭据。 */
+    getGatewayAuthOptions(): GatewayAuthOptions {
+        const configured = this.configService.get<unknown>('gateway.auth')
+        if (configured !== undefined && (!configured || typeof configured !== 'object' || Array.isArray(configured))) {
+            throw new Error('gateway.auth 必须是对象')
+        }
+        const auth =
+            configured && typeof configured === 'object' && !Array.isArray(configured) ? (configured as Record<string, unknown>) : {}
+        const enabled = getBoolean(auth.enabled, true)
+        const accountRoute = this.getGatewayRoutes().find(route => route.id === 'account')
+        if (enabled && !accountRoute) {
+            throw new Error('网关入口认证需要配置 Account 路由')
+        }
+
+        const publicPathsValue = auth.publicPaths
+        const publicPaths = publicPathsValue === undefined ? getDefaultPublicPaths() : parsePublicPaths(publicPathsValue)
+        const introspectionPath = readRequiredPath(
+            auth.introspectionPath,
+            '/internal/auth/token/introspect',
+            'gateway.auth.introspectionPath'
+        )
+        const timeoutMs = getPositiveInteger(auth.timeoutMs, 3000, 'gateway.auth.timeoutMs')
+        const serviceToken = enabled
+            ? readRequiredString(this.configService.get<unknown>('feign.service_token'), 'feign.service_token')
+            : ''
+
+        return {
+            enabled,
+            accountServiceName: accountRoute?.serviceName ?? 'chat-web-account-service',
+            accountFallbackUrl: accountRoute?.fallbackUrl ?? 'http://127.0.0.1:5010',
+            introspectionPath,
+            timeoutMs,
+            serviceToken,
+            publicPaths
+        }
+    }
+}
+
+function getDefaultPublicPaths(): string[] {
+    return [
+        '/health',
+        '/health/live',
+        '/health/ready',
+        '/doc.html',
+        '/services.json',
+        '/api/swagger',
+        '/api/swagger-json',
+        '/api/account/auth/codex/write',
+        '/api/account/auth/token/login'
+    ]
+}
+
+function parsePublicPaths(value: unknown): string[] {
+    if (!Array.isArray(value)) throw new Error('gateway.auth.publicPaths 必须是字符串数组')
+    return value.map((item, index) => readRequiredPath(item, '', `gateway.auth.publicPaths[${index}]`))
+}
+
+function readRequiredString(value: unknown, name: string): string {
+    if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} 必须是非空字符串`)
+    return value.trim()
+}
+
+function readRequiredPath(value: unknown, fallback: string, name: string): string {
+    const normalized = value === undefined ? fallback : readRequiredString(value, name)
+    if (!normalized.startsWith('/') || normalized.includes('?') || normalized.includes('#')) {
+        throw new Error(`${name} 必须是以 / 开头且不包含查询参数或锚点的路径`)
+    }
+    return normalized === '/' ? normalized : normalized.replace(/\/+$/, '')
 }
