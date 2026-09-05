@@ -11,7 +11,7 @@ function createService(overrides = {}) {
         introspectionPath: '/internal/auth/token/introspect',
         timeoutMs: 3000,
         serviceToken: 'internal-token',
-        publicPaths: ['/api/auth/token/login'],
+        publicPaths: ['/api/account/auth/codex/write', '/api/account/auth/token/login'],
         ...overrides
     }
     const config = {
@@ -39,19 +39,21 @@ function createService(overrides = {}) {
     return new GatewayAuthService(config, nacos)
 }
 
-test('网关认证跳过配置的公开接口', async () => {
-    const service = createService()
-    const originalFetch = global.fetch
-    global.fetch = async () => {
-        throw new Error('公开接口不应请求鉴权服务')
-    }
-    try {
-        const request = { method: 'POST', originalUrl: '/api/auth/token/login' }
-        assert.equal(await service.authenticate(request), undefined)
-    } finally {
-        global.fetch = originalFetch
-    }
-})
+for (const path of ['/api/account/auth/codex/write', '/api/auth/codex/write', '/api/account/auth/token/login', '/api/auth/token/login']) {
+    test(`网关认证跳过公开接口 ${path}`, async () => {
+        const service = createService()
+        const originalFetch = global.fetch
+        global.fetch = async () => {
+            throw new Error('公开接口不应当请求鉴权服务')
+        }
+        try {
+            const request = { method: 'POST', originalUrl: path }
+            assert.equal(await service.authenticate(request), undefined)
+        } finally {
+            global.fetch = originalFetch
+        }
+    })
+}
 
 test('网关认证拒绝缺少 Bearer Token 的业务请求', async () => {
     const service = createService()
