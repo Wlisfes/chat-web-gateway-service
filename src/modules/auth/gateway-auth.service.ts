@@ -121,10 +121,31 @@ export class GatewayAuthService implements OnApplicationBootstrap {
         if (!path.startsWith('/api/')) return false
         const hasRoute = this.serviceConfig.getGatewayRoutes().some(route => path === route.prefix || path.startsWith(`${route.prefix}/`))
         if (!hasRoute) return false
-        if (options.publicPaths.some(publicPath => path === publicPath || path.startsWith(`${publicPath}/`))) return false
+        if (options.publicPaths.some(publicPath => this.isPublicPath(path, publicPath))) return false
         if (/^\/api\/[^/]+\/health(?:\/.*)?$/.test(path)) return false
         if (/^\/api\/[^/]+\/api\/swagger(?:-json)?$/.test(path)) return false
         return true
+    }
+
+    private isPublicPath(path: string, publicPath: string): boolean {
+        return this.matchesPathPrefix(path, publicPath) || this.matchesPathPrefix(path, this.getPublicPathAlias(publicPath))
+    }
+
+    private matchesPathPrefix(path: string, publicPath?: string): boolean {
+        return Boolean(publicPath) && (path === publicPath || path.startsWith(`${publicPath}/`))
+    }
+
+    private getPublicPathAlias(publicPath: string): string | undefined {
+        const accountAuthPrefix = '/api/account/auth/'
+        const authPrefix = '/api/auth/'
+
+        if (publicPath.startsWith(accountAuthPrefix)) {
+            return `${authPrefix}${publicPath.slice(accountAuthPrefix.length)}`
+        }
+        if (publicPath.startsWith(authPrefix)) {
+            return `${accountAuthPrefix}${publicPath.slice(authPrefix.length)}`
+        }
+        return undefined
     }
 
     private getPath(request: GatewayRequest): string {
