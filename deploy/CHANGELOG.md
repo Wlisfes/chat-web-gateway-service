@@ -1,5 +1,24 @@
 # 部署变更记录
 
+## 2026-09-05：入口认证指向鉴权服务
+
+- 影响机器：`chat-home-server`。
+- 关联版本：共享包升级到 `@wlisfes/chat-web-base-schema@1.5.2`；网关源码无改动。
+- 变更内容：认证由新增的 `chat-web-auth-service` 承担。`GatewayAuthService` 与 `introspectionPath`（`/internal/auth/token/introspect`）保持不变，仅通过 Nacos 切换目标服务。
+- 机器侧操作：
+    1. `gateway.routes` 新增 `/api/auth` → `chat-web-auth-service`（回退地址 `http://chat-web-auth-service:5050`）。
+    2. `gateway.auth.accountServiceName` 改为 `chat-web-auth-service`。
+    3. `gateway.auth.publicPaths` 增加 `/api/auth/codex/write` 和 `/api/auth/token/login`；不要加入 `/api/auth/token/resolver`。
+    4. 内部内省路径不得加入 `gateway.routes`。
+- 验证命令：
+    ```bash
+    curl -i https://chat-web.lisfes.cn/api/auth/codex/write
+    curl -i -X POST https://chat-web.lisfes.cn/api/auth/token/login -H 'content-type: application/json' -d '{...}'
+    curl -i https://chat-web.lisfes.cn/api/account/user/column -H 'authorization: Bearer <access-token>' -X POST
+    curl -i https://chat-web.lisfes.cn/api/auth/internal/auth/token/introspect   # 必须 404
+    ```
+- 回滚方法：把 `gateway.auth.accountServiceName` 改回 `chat-web-account-service`，Nacos 配置热更新即刻生效，无需重新部署网关。
+
 ## 2026-09-05：迁移网关入口身份认证
 
 - 影响机器：`chat-home-server`；Gateway 与 Account 服务。

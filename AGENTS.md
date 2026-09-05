@@ -13,7 +13,7 @@
 - 如网关新增分页管理接口，必须使用统一的 `page`、`size` 入参和 `page`、`size`、`total`、`list` 响应；不得引入 `pageSize`、`items`、`records` 或 `rows` 同义字段。
 - 请求日志必须包含 logId、方法、URL、状态码、来源、入参和耗时，并脱敏密码、Token 等敏感字段。
 - Gateway 只负责路由、认证基础能力、限流、日志和服务发现，不连接业务数据库或读取业务 Redis。
-- Gateway 入口认证通过 Account 的独立内部认证协议完成，不得把认证调用注册为业务 Feign；用户 Token 与 `X-Service-Token` 服务凭据必须分离，Account 内部认证地址不得加入公开 `gateway.routes`。
+- Gateway 入口认证通过 `chat-web-auth-service` 的独立内部认证协议完成，不得把认证调用注册为业务 Feign；用户 Token 与 `X-Service-Token` 服务凭据必须分离，鉴权服务的内部认证地址不得加入公开 `gateway.routes`。切换认证目标只允许通过 Nacos `gateway.auth.accountServiceName` 完成，不得在源码中硬编码服务名。
 - `.env.example` 只列出启动所需参数和明确占位符；真实密钥、Token、私钥和生产 `.env` 不得提交。
 - 每次改动至少执行格式检查、TypeScript 类型检查和 Nest 构建；涉及代理、服务发现或部署时增加运行级验证。
 
@@ -49,7 +49,7 @@
 
 - 网关只负责路由与协议边界，不得导入业务 Entity、连接 Account/Finance 数据库或直接读取业务 Redis 数据。
 - 跨服务调用必须按 Nacos 服务名或显式服务地址转发到服务 API；需要聚合业务数据时使用强类型 HTTP 客户端 Provider，不得执行跨库 SQL。
-- 若网关自身未来需要缓存，必须先分配独立 Redis index，禁止复用 Account index `0` 或 Finance index `1`。
+- 若网关自身未来需要缓存，必须先分配独立 Redis index，禁止复用鉴权服务 index `0`、Finance index `3` 或 CRM index `2`。
 
 ## HTTP Controller 与 Service 编码基准
 
