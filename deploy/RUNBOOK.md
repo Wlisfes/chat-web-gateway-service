@@ -20,6 +20,8 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`      |
 | CRM 转发检查         | `http://127.0.0.1:5000/api/crm/health`          |
 | Skyline 转发检查     | `http://127.0.0.1:5000/api/skyline/health/live` |
+| Auth 转发检查        | `http://127.0.0.1:5000/api/auth/health/live`    |
+| 服务间入口           | `http://127.0.0.1:5000/feign/<服务名>/**`       |
 | 公网入口检查         | `https://chat-web.lisfes.cn/health`             |
 | 部署目录             | `/opt/chat-web-gateway-service`                 |
 | Docker 网络          | `chat-web-infrastructure`                       |
@@ -33,18 +35,94 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
+## 认证与服务间路由配置
+
+网关是唯一的认证入口，也是服务间调用的唯一转发点。`chat-web-gateway-service.yaml` 必须包含：
+
+```yaml
+gateway:
+    # 认证成功后签发的身份上下文密钥；所有业务服务必须配置同一个值。
+    principal:
+        secret: '<至少32位随机串>'
+        maxAgeSeconds: 60
+    auth:
+        enabled: true
+        # 内省目标改为鉴权服务；路径保持 /internal/auth/token/introspect。
+        accountServiceName: chat-web-auth-service
+        introspectionPath: /internal/auth/token/introspect
+        timeoutMs: 3000
+        publicPaths:
+            - /api/auth/codex/write
+            - /api/auth/token/login
+    routes:
+        # 客户端入口：转发时剥离前缀。
+        - {
+              id: auth,
+              prefix: /api/auth,
+              serviceName: chat-web-auth-service,
+              fallbackUrl: 'http://chat-web-auth-service:5050',
+              enabled: true
+          }
+        # 服务间入口：必须 stripPrefix: false，否则会打到同名的公开业务路由上。
+        - {
+              id: feign-account,
+              prefix: /feign/account,
+              serviceName: chat-web-account-service,
+              fallbackUrl: 'http://chat-web-account-service:5010',
+              enabled: true,
+              stripPrefix: false
+          }
+        - {
+              id: feign-finance,
+              prefix: /feign/finance,
+              serviceName: chat-web-finance-service,
+              fallbackUrl: 'http://chat-web-finance-service:5030',
+              enabled: true,
+              stripPrefix: false
+          }
+        - {
+              id: feign-crm,
+              prefix: /feign/crm,
+              serviceName: chat-web-crm-service,
+              fallbackUrl: 'http://chat-web-crm-service:5020',
+              enabled: true,
+              stripPrefix: false
+          }
+        - {
+              id: feign-skyline,
+              prefix: /feign/skyline,
+              serviceName: chat-web-skyline-service,
+              fallbackUrl: 'http://chat-web-skyline-service:5040',
+              enabled: true,
+              stripPrefix: false
+          }
+
+feign:
+    # 内省接口的调用方凭据，同时也是服务间 Feign 的 Authorization 值。
+    service_token: '<服务间共享凭据>'
+```
+
+`deploy/migrate-nacos-routes.cjs` 会在部署时幂等补齐 `/api/auth` 和四条 `/feign/*` 路由，已存在的人工配置不会被覆盖。
+
+**安全约束**：云端 Nginx 只能转发 `/api/*`。`/feign/*` 一旦对公网开放，服务间接口就只剩共享凭据保护。验证方式：
+
+```bash
+curl -i https://chat-web.lisfes.cn/feign/account/consumer/select        # 必须 404
+curl -i -H 'x-gateway-principal: forged' -X POST https://chat-web.lisfes.cn/api/account/user/column   # 必须 401
+```
+
 Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。`logs.lisfes.com` 仅保留为本机直连兼容入口，不作为公网域名。
 
 基础设施公网入口统一使用 Docker 容器名对应的域名。域名均解析到云服务器 `47.119.21.228`，云端 Nginx 通过 WireGuard 转发到本机 Docker：
 
-| 容器                | 域名                          | 协议/端口                                           |
-| ------------------- | ----------------------------- | --------------------------------------------------- |
-| `chat-web-mysql`    | `chat-web-mysql.lisfes.cn`    | MySQL TCP `3306`                                    |
-| `chat-web-nacos`    | `chat-web-nacos.lisfes.cn`    | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848` |
-| `chat-web-dozzle`   | `chat-web-dozzle.lisfes.cn`   | HTTPS `443`                                         |
-| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443` / TCP `15672`  |
+| 容器                | 域名                          | 协议/端口                                                    |
+| ------------------- | ----------------------------- | ------------------------------------------------------------ |
+| `chat-web-mysql`    | `chat-web-mysql.lisfes.cn`    | MySQL TCP `3306`                                             |
+| `chat-web-nacos`    | `chat-web-nacos.lisfes.cn`    | 控制台 HTTPS `443`（`/nacos/`）、客户端 gRPC `9848`          |
+| `chat-web-dozzle`   | `chat-web-dozzle.lisfes.cn`   | HTTPS `443`                                                  |
+| `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443` / TCP `15672`            |
 | `chat-web-redis`    | `chat-web-redis.lisfes.cn`    | Redis TCP 公网 `6379`（WireGuard `18080`，本机回环 `16379`） |
-| `chat-web-kafka`    | `chat-web-kafka.lisfes.cn`    | Kafka TCP `9092`                                    |
+| `chat-web-kafka`    | `chat-web-kafka.lisfes.cn`    | Kafka TCP `9092`                                             |
 
 开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。公网基础设施链路如下：
 
@@ -182,17 +260,17 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 
 ## 常见故障
 
-| 现象                  | 原因                                      | 处理                                                       |
-| --------------------- | ----------------------------------------- | ---------------------------------------------------------- |
-| 部署一直 Queued       | `chat-home-server` 的 Gateway Runner 离线 | 启动 WSL 并重启 Gateway Runner                             |
-| 5000 拒绝连接         | Gateway 未部署或未通过健康检查            | 查看容器状态和日志，核对 `/opt` 下 `.env`                  |
-| Nacos 配置不存在      | Namespace ID、Data ID 或 Group 不一致     | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`      |
-| Account 转发 502      | Account 容器不可达且 Nacos 无健康实例     | 检查 Account 健康和 Docker 网络                            |
-| `healthyInstances: 0` | Account 尚未注册到 Nacos                  | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务 |
-| 业务请求统一返回 `401` | Gateway `gateway.auth.publicPaths` 缺少登录、验证码或文档路径 | 补齐 Nacos 公开路径后等待配置订阅生效，再验证预检和登录 |
-| Gateway 认证返回 `503` | Account 内部认证接口不可达或服务凭据缺失/不一致 | 检查 Account 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
-| 管理端 CORS 预检失败  | Nacos 未启用凭据或未允许管理端 Origin     | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头 |
-| Redis 域名连接超时    | 云端仍转发到旧的 6379，或本机 18080 代理缺失 | 确认云端上游为 `10.66.0.2:18080`，重跑端口代理脚本并检查 16379 映射 |
+| 现象                   | 原因                                                          | 处理                                                                  |
+| ---------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 部署一直 Queued        | `chat-home-server` 的 Gateway Runner 离线                     | 启动 WSL 并重启 Gateway Runner                                        |
+| 5000 拒绝连接          | Gateway 未部署或未通过健康检查                                | 查看容器状态和日志，核对 `/opt` 下 `.env`                             |
+| Nacos 配置不存在       | Namespace ID、Data ID 或 Group 不一致                         | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`                 |
+| Account 转发 502       | Account 容器不可达且 Nacos 无健康实例                         | 检查 Account 健康和 Docker 网络                                       |
+| `healthyInstances: 0`  | Account 尚未注册到 Nacos                                      | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务            |
+| 业务请求统一返回 `401` | Gateway `gateway.auth.publicPaths` 缺少登录、验证码或文档路径 | 补齐 Nacos 公开路径后等待配置订阅生效，再验证预检和登录               |
+| Gateway 认证返回 `503` | Account 内部认证接口不可达或服务凭据缺失/不一致               | 检查 Account 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
+| 管理端 CORS 预检失败   | Nacos 未启用凭据或未允许管理端 Origin                         | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头             |
+| Redis 域名连接超时     | 云端仍转发到旧的 6379，或本机 18080 代理缺失                  | 确认云端上游为 `10.66.0.2:18080`，重跑端口代理脚本并检查 16379 映射   |
 
 ## 恢复顺序
 

@@ -42,6 +42,48 @@ async function configParameters() {
     return parameters
 }
 
+/** 服务间路由清单；与共享 Feign 客户端声明的 `/feign/<服务名>` 前缀一一对应。 */
+const FEIGN_ROUTES = [
+    {
+        id: 'feign-account',
+        prefix: '/feign/account',
+        serviceName: 'chat-web-account-service',
+        fallbackUrl: 'http://chat-web-account-service:5010'
+    },
+    {
+        id: 'feign-finance',
+        prefix: '/feign/finance',
+        serviceName: 'chat-web-finance-service',
+        fallbackUrl: 'http://chat-web-finance-service:5030'
+    },
+    { id: 'feign-crm', prefix: '/feign/crm', serviceName: 'chat-web-crm-service', fallbackUrl: 'http://chat-web-crm-service:5020' },
+    {
+        id: 'feign-skyline',
+        prefix: '/feign/skyline',
+        serviceName: 'chat-web-skyline-service',
+        fallbackUrl: 'http://chat-web-skyline-service:5040'
+    }
+]
+
+/** 幂等地补齐一条网关路由；已存在同前缀配置时保持人工维护的内容不变。 */
+function ensureRoute(content, route) {
+    const pattern = new RegExp(`^[ \\t]*prefix:[ \\t]*['"]?${route.prefix.replace(/\//g, '\\/')}['"]?[ \\t]*$`, 'm')
+    if (pattern.test(content)) return content
+
+    const lines = [
+        `    - id: ${route.id}`,
+        `      prefix: ${route.prefix}`,
+        `      serviceName: ${route.serviceName}`,
+        `      fallbackUrl: ${route.fallbackUrl}`,
+        '      enabled: true'
+    ]
+    if (route.stripPrefix === false) lines.push('      stripPrefix: false')
+
+    const nacosIndex = content.search(/^nacos:\s*$/m)
+    if (nacosIndex < 0) throw new Error('Gateway Nacos config must contain the root nacos section')
+    return `${content.slice(0, nacosIndex)}${lines.join('\n')}\n\n${content.slice(nacosIndex)}`
+}
+
 function migrateRoutePrefixes(content) {
     let migrated = content
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api\/windows\/finance['"]?[ \t]*$/gm, '$1/api/finance')
@@ -70,6 +112,17 @@ function migrateRoutePrefixes(content) {
         const nacosIndex = migrated.search(/^nacos:\s*$/m)
         if (nacosIndex < 0) throw new Error('Gateway Nacos config must contain the root nacos section')
         migrated = `${migrated.slice(0, nacosIndex)}${skylineRoute}\n${migrated.slice(nacosIndex)}`
+    }
+    // 鉴权服务的客户端入口；认证接口从账号服务迁出后由该前缀承载。
+    migrated = ensureRoute(migrated, {
+        id: 'auth',
+        prefix: '/api/auth',
+        serviceName: 'chat-web-auth-service',
+        fallbackUrl: 'http://chat-web-auth-service:5050'
+    })
+    // 服务间入口；网关不剥离 /feign/<服务名> 前缀，下游按共享 Feign 客户端的继承路由接收。
+    for (const service of FEIGN_ROUTES) {
+        migrated = ensureRoute(migrated, { ...service, stripPrefix: false })
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/finance['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Finance prefix /api/finance')
