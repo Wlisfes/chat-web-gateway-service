@@ -13,7 +13,7 @@
 - 如网关新增分页管理接口，必须使用统一的 `page`、`size` 入参和 `page`、`size`、`total`、`list` 响应；不得引入 `pageSize`、`items`、`records` 或 `rows` 同义字段。
 - 请求日志必须包含 logId、方法、URL、状态码、来源、入参和耗时，并脱敏密码、Token 等敏感字段。
 - Gateway 只负责路由、认证基础能力、限流、日志和服务发现，不连接业务数据库或读取业务 Redis。
-- Gateway 入口认证通过 `chat-web-auth-service` 的独立内部认证协议完成，不得把认证调用注册为业务 Feign；用户 Token 与 `X-Service-Token` 服务凭据必须分离，鉴权服务的内部认证地址不得加入公开 `gateway.routes`。切换认证目标只允许通过 Nacos `gateway.auth.accountServiceName` 完成，不得在源码中硬编码服务名。
+- Gateway 入口认证通过 `chat-web-auth-service` 的独立内部认证协议完成，不得把认证调用注册为业务 Feign；用户 Token 与 `X-Service-Token` 服务凭据必须分离，鉴权服务的内部认证地址不得加入公开 `gateway.routes`。认证目标只从 Nacos `gateway.routes` 的 `id: auth` 路由读取，不在源码中硬编码服务地址。
 - `.env.example` 只列出启动所需参数和明确占位符；真实密钥、Token、私钥和生产 `.env` 不得提交。
 - 每次改动至少执行格式检查、TypeScript 类型检查和 Nest 构建；涉及代理、服务发现或部署时增加运行级验证。
 

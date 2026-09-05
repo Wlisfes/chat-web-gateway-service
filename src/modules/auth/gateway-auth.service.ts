@@ -91,15 +91,15 @@ export class GatewayAuthService implements OnApplicationBootstrap {
                 signal: AbortSignal.timeout(options.timeoutMs)
             })
         } catch (error) {
-            this.logger.warn(`Account 认证服务请求失败：${error instanceof Error ? error.message : String(error)}`)
-            throw new ServiceUnavailableException('账号认证服务暂不可用')
+            this.logger.warn(`Auth 认证服务请求失败：${error instanceof Error ? error.message : String(error)}`)
+            throw new ServiceUnavailableException('鉴权服务暂不可用')
         }
 
         let envelope: AuthResponseEnvelope
         try {
             envelope = (await response.json()) as AuthResponseEnvelope
         } catch {
-            throw new BadGatewayException('账号认证服务返回了无效响应')
+            throw new BadGatewayException('鉴权服务返回了无效响应')
         }
 
         const code = typeof envelope.code === 'number' ? envelope.code : response.status
@@ -108,11 +108,11 @@ export class GatewayAuthService implements OnApplicationBootstrap {
             throw new UnauthorizedException(message)
         }
         if (!response.ok || code !== 200) {
-            throw new BadGatewayException('账号认证服务返回异常')
+            throw new BadGatewayException('鉴权服务返回异常')
         }
 
         if (!this.isPrincipal(envelope.data)) {
-            throw new BadGatewayException('账号认证服务返回了无效身份主体')
+            throw new BadGatewayException('鉴权服务返回了无效身份主体')
         }
         return envelope.data
     }

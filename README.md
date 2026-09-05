@@ -29,7 +29,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 | `/api/crm/sms/**`              | `/sms/**`          |
 | `GET /api/skyline/health/live` | `GET /health/live` |
 
-网关现在负责入口身份认证：受保护的 `/api/**` 请求会先通过 Account 的内部认证协议校验 Bearer Token，再转发到下游服务。账号服务仍然负责签发 Token、维护 Redis 会话和撤销会话；下游服务不能因此取消自身的 Token 校验、权限校验和数据访问控制。
+网关现在负责入口身份认证：受保护的 `/api/**` 请求会先通过 Auth 的内部认证协议校验 Bearer Token，再转发到下游服务。Auth 负责签发 Token、维护 Redis 会话和撤销会话；下游服务只校验 Gateway 签发的身份上下文，权限校验和数据访问控制仍由各业务服务负责。
 
 ## 本地启动
 
@@ -141,7 +141,7 @@ nacos:
         serviceName: chat-web-gateway-service
 ```
 
-`gateway.auth.enabled` 开启后，网关会使用 Account 路由的 Nacos 服务发现或 `fallbackUrl` 请求内部认证接口。Gateway Nacos 与 Account Nacos 的 `feign.service_token` 必须使用同一个真实凭据，真实值不得提交到 Git 或写入 `.env`。网关认证接口不加入 `gateway.routes`，只能通过 Docker 内部网络或服务发现访问。
+`gateway.auth.enabled` 开启后，网关会使用 `id: auth` 路由的 Nacos 服务发现或 `fallbackUrl` 请求内部认证接口。Gateway Nacos 与 Auth Nacos 的 `feign.service_token` 必须使用同一个真实凭据，真实值不得提交到 Git 或写入 `.env`。网关认证接口不加入 `gateway.routes`，只能通过 Docker 内部网络或服务发现访问。
 
 `publicPaths` 用于声明不需要用户登录的网关路径；登录、验证码、健康检查和 Swagger 必须保留在列表中。新增公开接口时先更新 Nacos 配置，再验证 CORS 和未登录访问结果。认证失败返回 `401`，Account 不可用返回 `503`。
 

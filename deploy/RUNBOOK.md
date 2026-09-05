@@ -196,7 +196,7 @@ docker exec chat-web-nginx nginx -s reload
 
 仓库根目录和服务器 `deploy/.env.example` 均只保留进程启动及 Nacos 建连/注册字段；路由、后备地址、跨域、限流、入口认证及注册发现配置统一以 Nacos 远端 `chat-web-gateway-service.yaml` 为准。
 
-启用入口认证前，必须在 Gateway Nacos `gateway.auth` 中配置 `enabled: true`、`introspectionPath: /internal/auth/token/introspect`、`timeoutMs` 和公开路径数组，并在 Gateway Nacos 顶层 `feign.service_token` 写入真实凭据；Account Nacos `feign.service_token` 必须使用同一个真实凭据。凭据只写入 Nacos，不写入 `.env`、镜像、仓库或日志。Gateway 会通过 Nacos Account 服务发现或 Account 路由的 `fallbackUrl` 调用内部接口，内部认证路径不能加入 `gateway.routes`。
+启用入口认证前，必须在 Gateway Nacos `gateway.auth` 中配置 `enabled: true`、`introspectionPath: /internal/auth/token/introspect`、`timeoutMs` 和公开路径数组，并在 Gateway Nacos 顶层 `feign.service_token` 写入真实凭据；Auth Nacos `feign.service_token` 必须使用同一个真实凭据。凭据只写入 Nacos，不写入 `.env`、镜像、仓库或日志。Gateway 会通过 Nacos `id: auth` 路由的服务发现或 `fallbackUrl` 调用内部接口，内部认证路径不能加入 `gateway.routes`。
 
 Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
@@ -237,7 +237,7 @@ curl -k -i https://chat-web.lisfes.cn/api/account/user/resolver
 
 跨域预检应返回 `204`，并包含 `Access-Control-Allow-Origin: https://chat.lisfes.cn`、`Access-Control-Allow-Credentials: true`，且 `Access-Control-Allow-Headers` 包含 `Content-Type`。实际代理响应也必须返回相同的精确 Origin，不能返回 `*`。Origin 和凭据策略统一维护在云端 Nacos `gateway.cors`；Gateway 不透传下游服务的 `Access-Control-*` 响应头，Nginx 不重复生成 CORS 响应头。
 
-启用入口认证后，最后一条未携带 Token 的业务请求应返回 `401`；登录、验证码、健康检查、Swagger 和 CORS 预检仍应正常返回。若返回 `503`，先检查 Account 容器健康、Nacos 服务发现和两端 `feign.service_token` 是否一致；不得在日志中打印凭据。
+启用入口认证后，最后一条未携带 Token 的业务请求应返回 `401`；登录、验证码、健康检查、Swagger 和 CORS 预检仍应正常返回。若返回 `503`，先检查 Auth 容器健康、Nacos `id: auth` 服务发现和两端 `feign.service_token` 是否一致；不得在日志中打印凭据。
 
 `/health` 中 `source` 为 `fallback` 表示 Account 尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。
 
@@ -276,7 +276,7 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 | Account 转发 502       | Account 容器不可达且 Nacos 无健康实例                         | 检查 Account 健康和 Docker 网络                                       |
 | `healthyInstances: 0`  | Account 尚未注册到 Nacos                                      | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务            |
 | 业务请求统一返回 `401` | Gateway `gateway.auth.publicPaths` 缺少登录、验证码或文档路径 | 补齐 Nacos 公开路径后等待配置订阅生效，再验证预检和登录               |
-| Gateway 认证返回 `503` | Account 内部认证接口不可达或服务凭据缺失/不一致               | 检查 Account 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
+| Gateway 认证返回 `503` | Auth 内部认证接口不可达或服务凭据缺失/不一致                  | 检查 Auth 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
 | 管理端 CORS 预检失败   | Nacos 未启用凭据或未允许管理端 Origin                         | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头             |
 | Redis 域名连接超时     | 云端仍转发到旧的 6379，或本机 18080 代理缺失                  | 确认云端上游为 `10.66.0.2:18080`，重跑端口代理脚本并检查 16379 映射   |
 

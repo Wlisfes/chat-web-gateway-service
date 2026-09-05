@@ -16,8 +16,8 @@ export interface GatewayRouteConfig {
 /**
  * 网关入口认证配置。
  *
- * 内省目标优先取 `id: auth` 的路由，未配置时回退到 `id: account`，因此认证从账号服务
- * 迁移到鉴权服务只需要新增 `/api/auth` 路由，不需要额外的服务名配置项。
+ * 内省目标优先取 `id: auth` 的路由，未配置时回退到 `id: account` 仅用于灰度回滚；
+ * 正常生产配置必须使用 `/api/auth` 路由指向独立鉴权服务。
  */
 export interface GatewayAuthOptions {
     enabled: boolean
