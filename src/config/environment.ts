@@ -170,14 +170,16 @@ export function getFallbackGatewayRoutes(environment: Record<string, unknown>): 
             prefix: '/api/account',
             serviceName: readString(environment.ACCOUNT_SERVICE_NAME, 'chat-web-account-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:5010'), 'ACCOUNT_SERVICE_URL'),
-            enabled: true
+            enabled: true,
+            stripPrefix: true
         },
         {
             id: 'finance',
             prefix: '/api/finance',
             serviceName: readString(environment.FINANCE_SERVICE_NAME, 'chat-web-finance-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:5030'), 'FINANCE_SERVICE_URL'),
-            enabled: true
+            enabled: true,
+            stripPrefix: true
         }
     ]
 }
@@ -204,7 +206,9 @@ export function parseGatewayRoutes(value: unknown): GatewayRouteConfig[] {
             prefix,
             serviceName,
             fallbackUrl,
-            enabled: getBoolean(route.enabled, true)
+            enabled: getBoolean(route.enabled, true),
+            // 服务间路由默认保留前缀，客户端路由默认剥离；确有特殊需要时可在 Nacos 显式覆盖。
+            stripPrefix: getBoolean(route.stripPrefix, !prefix.startsWith('/feign/'))
         }
     })
 
@@ -322,8 +326,9 @@ function parsePositiveNumber(value: unknown, fallback: number, name: string): nu
 }
 
 function normalizeRoutePrefix(value: string, name: string): string {
-    if (!/^\/api\/[a-z0-9][a-z0-9/-]*$/.test(value) || value.endsWith('/')) {
-        throw new Error(`${name} 必须包含服务名称前缀，并使用以 /api/ 开头且不以 / 结尾的小写路径`)
+    // `/api/*` 是客户端入口，`/feign/*` 是服务间入口；两者都必须带服务名称段。
+    if (!/^\/(api|feign)\/[a-z0-9][a-z0-9/-]*$/.test(value) || value.endsWith('/')) {
+        throw new Error(`${name} 必须包含服务名称前缀，并使用以 /api/ 或 /feign/ 开头且不以 / 结尾的小写路径`)
     }
     return value
 }

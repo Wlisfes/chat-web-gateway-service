@@ -41,7 +41,8 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
         prefix: '/api/account',
         serviceName: 'chat-web-account-service',
         fallbackUrl: 'http://127.0.0.1:5010',
-        enabled: true
+        enabled: true,
+        stripPrefix: true
     }
     let targetUrl
     let forwardedPrefix
@@ -83,6 +84,48 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
         assert.match(errors[0], /^GET \/api\/account\/sheet\/update\?source=error -> chat-web-account-service：/)
     } finally {
         Logger.prototype.error = originalError
+        await Promise.all([close(gatewayServer), close(downstreamServer)])
+    }
+})
+
+test('服务间路由保留 /feign 前缀并下发签名身份上下文', async () => {
+    const route = {
+        id: 'feign-account',
+        prefix: '/feign/account',
+        serviceName: 'chat-web-account-service',
+        fallbackUrl: 'http://127.0.0.1:5010',
+        enabled: true,
+        stripPrefix: false
+    }
+    let received
+    const downstreamApplication = express()
+    downstreamApplication.use((request, response) => {
+        received = { url: request.originalUrl, principal: request.headers['x-gateway-principal'] }
+        response.json({ ok: true })
+    })
+    const downstreamServer = await listen(downstreamApplication)
+    const targetUrl = `http://127.0.0.1:${downstreamServer.address().port}`
+
+    const gatewayService = new GatewayProxyService(
+        {
+            getProxyTimeout: () => 500,
+            getGatewayRoutes: () => [route],
+            signPrincipal: principal => `signed:${principal.uid}`
+        },
+        { resolveService: async () => targetUrl }
+    )
+    const gatewayApplication = express()
+    gatewayService.mount(gatewayApplication)
+    gatewayService.initialize()
+    const gatewayServer = await listen(gatewayApplication)
+    const gatewayUrl = `http://127.0.0.1:${gatewayServer.address().port}`
+
+    try {
+        // 服务间调用不经过用户认证，因此不下发身份上下文。
+        await fetch(`${gatewayUrl}/feign/account/consumer/resolver?keyId=12`).then(response => response.json())
+        assert.equal(received.url, '/feign/account/consumer/resolver?keyId=12')
+        assert.equal(received.principal, undefined)
+    } finally {
         await Promise.all([close(gatewayServer), close(downstreamServer)])
     }
 })

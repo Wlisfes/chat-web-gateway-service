@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface'
+import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { getGatewayPrincipalMaxAge, getGatewayPrincipalSecret, signGatewayPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import {
     applyGatewayRouteEnvironmentOverrides,
     getBoolean,
@@ -56,6 +58,17 @@ export class ServiceConfigService {
             60_000,
             'gateway.rateLimit.windowMs'
         )
+    }
+
+    /** 签发下发给业务服务的身份上下文；密钥缺失时直接抛出，避免明文身份被下游信任。 */
+    signPrincipal(principal: AuthPrincipal): string {
+        return signGatewayPrincipal(principal, getGatewayPrincipalSecret(this.configService))
+    }
+
+    /** 校验身份上下文签名配置，供启动期自检使用。 */
+    assertPrincipalConfigured(): void {
+        getGatewayPrincipalSecret(this.configService)
+        getGatewayPrincipalMaxAge(this.configService)
     }
 
     getTrustProxy(): boolean {

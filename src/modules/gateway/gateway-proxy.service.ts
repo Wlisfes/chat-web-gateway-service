@@ -1,6 +1,8 @@
 import type { ClientRequest, IncomingMessage, Server } from 'node:http'
 import type { Socket } from 'node:net'
 import { Injectable, Logger, Optional } from '@nestjs/common'
+import { GATEWAY_PRINCIPAL_HEADER } from '@wlisfes/chat-web-base-schema/auth'
+import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import { resolveRequestId } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, Request, RequestHandler, Response } from 'express'
@@ -44,14 +46,18 @@ export class GatewayProxyService {
         }
         this.mounted = true
 
-        application.use('/api', ((request: Request, response: Response, next) => {
+        const handler: RequestHandler = (request: Request, response: Response, next) => {
             if (!this.proxy) {
                 response.status(200).json(createApiResponse(null, { code: 503, message: '网关配置正在初始化' }))
                 return
             }
             void this.proxy(request, response, next)
-        }) as RequestHandler)
-        this.logger.log('已挂载 Nacos 动态网关路由：/api/**')
+        }
+
+        // `/api/**` 是客户端入口，`/feign/**` 是服务间入口；后者不对公网暴露，由反向代理只放行 `/api/**` 保证。
+        application.use('/api', handler)
+        application.use('/feign', handler)
+        this.logger.log('已挂载 Nacos 动态网关路由：/api/** 与 /feign/**')
     }
 
     initialize(): void {
@@ -84,7 +90,7 @@ export class GatewayProxyService {
                 proxyReq: (proxyRequest, request) => {
                     const route = this.getMatchedRoute(request)
                     this.startedAt.set(request, Date.now())
-                    this.setProxyHeaders(proxyRequest, route)
+                    this.setProxyHeaders(proxyRequest, route, request)
                 },
                 proxyReqWs: (proxyRequest, request) => {
                     this.setProxyHeaders(proxyRequest, this.getMatchedRoute(request as Request))
@@ -145,9 +151,7 @@ export class GatewayProxyService {
             this.matchedRoutes.set(proxyRequest, route)
             request.headers['x-request-id'] = resolveRequestId(request.headers['x-request-id'])
             const authenticate = this.authService?.authenticate(proxyRequest) ?? Promise.resolve(undefined)
-            void authenticate
-                .then(() => this.proxy?.upgrade(proxyRequest, socket as Socket, head))
-                .catch(() => socket.destroy())
+            void authenticate.then(() => this.proxy?.upgrade(proxyRequest, socket as Socket, head)).catch(() => socket.destroy())
         })
     }
 
@@ -171,12 +175,18 @@ export class GatewayProxyService {
 
     private getDownstreamPath(request: Request, route: GatewayRouteConfig): string {
         const requestUrl = new URL(request.originalUrl || request.url || '/', 'http://gateway.local')
-        const pathname = requestUrl.pathname.slice(route.prefix.length) || '/'
+        const pathname = route.stripPrefix ? requestUrl.pathname.slice(route.prefix.length) || '/' : requestUrl.pathname
         return `${pathname}${requestUrl.search}`
     }
 
-    private setProxyHeaders(proxyRequest: ClientRequest, route: GatewayRouteConfig): void {
+    private setProxyHeaders(proxyRequest: ClientRequest, route: GatewayRouteConfig, request?: Request): void {
         proxyRequest.setHeader('x-gateway-service', 'chat-web-gateway-service')
         proxyRequest.setHeader('x-forwarded-prefix', route.prefix)
+
+        // 认证通过的请求下发签名身份上下文，业务服务只做本地验签，不再远程内省。
+        const principal = (request as (Request & { user?: AuthPrincipal }) | undefined)?.user
+        if (principal) {
+            proxyRequest.setHeader(GATEWAY_PRINCIPAL_HEADER, this.serviceConfig.signPrincipal(principal))
+        }
     }
 }

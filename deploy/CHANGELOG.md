@@ -1,5 +1,28 @@
 # 部署变更记录
 
+## 2026-09-05：网关签发身份上下文并统一承载服务间调用
+
+- 影响机器：`chat-home-server`。
+- 关联版本：共享包 `@wlisfes/chat-web-base-schema@1.6.0`。
+- 变更内容：
+    - 网关认证成功后签发 HMAC 身份上下文，通过 `x-gateway-principal` 下发给业务服务；业务服务只做本地验签，不再远程内省。
+    - **入口无条件剥离**客户端自带的 `x-gateway-principal`、`x-gateway-service` 头部，防止外部伪造身份。
+    - 新增 `/feign/**` 挂载，服务间调用统一经网关按 `/feign/<服务名>` 前缀转发；该前缀不剥离，下游按共享 Feign 客户端的继承路由接收。
+    - `GatewayRouteConfig` 新增 `stripPrefix`：`/api/*` 默认剥离，`/feign/*` 默认保留。
+- 机器侧操作：
+    1. Nacos 新增 `gateway.principal.secret`（至少 32 位随机串，与各业务服务保持一致）和可选的 `gateway.principal.maxAgeSeconds`（默认 60）。
+    2. `gateway.routes` 新增 `/feign/account`、`/feign/finance`、`/feign/crm`、`/feign/skyline` 四条路由，`stripPrefix: false`。
+    3. `gateway.routes` 新增 `/api/auth` 指向鉴权服务；`gateway.auth.accountServiceName` 改为 `chat-web-auth-service`。
+    4. `gateway.auth.publicPaths` 增加 `/api/auth/codex/write` 和 `/api/auth/token/login`。
+    5. **云端 Nginx 必须继续只转发 `/api/*`**；`/feign/*` 不得对公网开放。
+- 验证命令：
+    ```bash
+    curl -i https://chat-web.lisfes.cn/feign/account/consumer/select     # 必须 404，证明公网不可达
+    curl -i -H 'x-gateway-principal: forged' https://chat-web.lisfes.cn/api/account/user/column -X POST   # 必须 401
+    curl -i http://127.0.0.1:5000/feign/account/consumer/select -H 'authorization: Bearer <service-token>'
+    ```
+- 回滚方法：回退网关镜像与共享包版本；Nacos 的 `/feign/*` 路由和 `gateway.principal.*` 可保留，旧版本不读取。
+
 ## 2026-09-05：入口认证指向鉴权服务
 
 - 影响机器：`chat-home-server`。

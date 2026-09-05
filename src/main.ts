@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import { ReadableConsoleLogger, createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
+import { GATEWAY_STRIPPED_HEADERS } from '@wlisfes/chat-web-base-schema/auth'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, RequestHandler } from 'express'
 import { rateLimit } from 'express-rate-limit'
@@ -54,6 +55,14 @@ async function bootstrap(): Promise<void> {
     process.once('SIGTERM', () => void shutdown('SIGTERM'))
 
     app.enableCors((_request, callback) => callback(null, serviceConfig.getCorsOptions()))
+    // 身份上下文只能由网关签发；必须在任何转发之前无条件丢弃客户端自带的同名头部，
+    // 否则外部请求可以直接伪造身份绕过认证。该动作对 /api 和 /feign 一律生效。
+    app.use(((request, _response, next) => {
+        for (const headerName of GATEWAY_STRIPPED_HEADERS) {
+            delete request.headers[headerName]
+        }
+        next()
+    }) as RequestHandler)
     app.use(requestContextMiddleware)
     app.use(createRequestLoggingMiddleware(serviceName))
     app.use(
@@ -68,20 +77,17 @@ async function bootstrap(): Promise<void> {
 
     const proxyService = app.get(GatewayProxyService)
     const gatewayAuthService = app.get(GatewayAuthService)
-    app.use(
-        '/api',
-        ((request, response, next) => {
-            void gatewayAuthService
-                .authenticate(request)
-                .then(() => next())
-                .catch(error => gatewayAuthService.writeError(response, error))
-        }) as RequestHandler
-    )
+    app.use('/api', ((request, response, next) => {
+        void gatewayAuthService
+            .authenticate(request)
+            .then(() => next())
+            .catch(error => gatewayAuthService.writeError(response, error))
+    }) as RequestHandler)
     proxyService.mount(expressApplication)
 
     const swaggerConfig = new DocumentBuilder()
         .setTitle('Chat Web Gateway API')
-        .setDescription('Chat Web 微服务统一入口。业务接口通过 /api/{service}/** 转发。')
+        .setDescription('Chat Web 微服务统一入口。客户端接口通过 /api/{service}/** 转发，服务间接口通过 /feign/{service}/** 转发。')
         .setVersion('1.0')
         .addBearerAuth()
         .build()
