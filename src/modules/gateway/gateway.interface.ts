@@ -13,11 +13,16 @@ export interface GatewayRouteConfig {
     stripPrefix: boolean
 }
 
-/** 网关入口认证配置；认证服务地址仍通过 Account 路由和 Nacos 服务发现解析。 */
+/**
+ * 网关入口认证配置。
+ *
+ * 内省目标优先取 `id: auth` 的路由，未配置时回退到 `id: account`，因此认证从账号服务
+ * 迁移到鉴权服务只需要新增 `/api/auth` 路由，不需要额外的服务名配置项。
+ */
 export interface GatewayAuthOptions {
     enabled: boolean
-    accountServiceName: string
-    accountFallbackUrl: string
+    serviceName: string
+    fallbackUrl: string
     introspectionPath: string
     timeoutMs: number
     serviceToken: string

@@ -6,27 +6,36 @@ const { GatewayAuthService } = require('../dist/modules/auth/gateway-auth.servic
 function createService(overrides = {}) {
     const options = {
         enabled: true,
-        accountServiceName: 'chat-web-account-service',
-        accountFallbackUrl: 'http://127.0.0.1:5010',
+        serviceName: 'chat-web-auth-service',
+        fallbackUrl: 'http://127.0.0.1:5050',
         introspectionPath: '/internal/auth/token/introspect',
         timeoutMs: 3000,
         serviceToken: 'internal-token',
-        publicPaths: ['/api/account/auth/token/login'],
+        publicPaths: ['/api/auth/token/login'],
         ...overrides
     }
     const config = {
         getGatewayAuthOptions: () => options,
         getGatewayRoutes: () => [
             {
+                id: 'auth',
+                prefix: '/api/auth',
+                serviceName: 'chat-web-auth-service',
+                fallbackUrl: 'http://127.0.0.1:5050',
+                enabled: true,
+                stripPrefix: true
+            },
+            {
                 id: 'account',
                 prefix: '/api/account',
                 serviceName: 'chat-web-account-service',
                 fallbackUrl: 'http://127.0.0.1:5010',
-                enabled: true
+                enabled: true,
+                stripPrefix: true
             }
         ]
     }
-    const nacos = { resolveService: async () => 'http://127.0.0.1:5010' }
+    const nacos = { resolveService: async () => 'http://127.0.0.1:5050' }
     return new GatewayAuthService(config, nacos)
 }
 
@@ -34,10 +43,10 @@ test('网关认证跳过配置的公开接口', async () => {
     const service = createService()
     const originalFetch = global.fetch
     global.fetch = async () => {
-        throw new Error('公开接口不应请求 Account')
+        throw new Error('公开接口不应请求鉴权服务')
     }
     try {
-        const request = { method: 'POST', originalUrl: '/api/account/auth/token/login' }
+        const request = { method: 'POST', originalUrl: '/api/auth/token/login' }
         assert.equal(await service.authenticate(request), undefined)
     } finally {
         global.fetch = originalFetch

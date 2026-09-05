@@ -84,9 +84,11 @@ export class ServiceConfigService {
         const auth =
             configured && typeof configured === 'object' && !Array.isArray(configured) ? (configured as Record<string, unknown>) : {}
         const enabled = getBoolean(auth.enabled, true)
-        const accountRoute = this.getGatewayRoutes().find(route => route.id === 'account')
-        if (enabled && !accountRoute) {
-            throw new Error('网关入口认证需要配置 Account 路由')
+        // 认证目标优先使用鉴权服务路由；未迁移完成时回退到账号服务路由。
+        const routes = this.getGatewayRoutes()
+        const authRoute = routes.find(route => route.id === 'auth') ?? routes.find(route => route.id === 'account')
+        if (enabled && !authRoute) {
+            throw new Error('网关入口认证需要配置 auth 或 account 路由')
         }
 
         const publicPathsValue = auth.publicPaths
@@ -103,8 +105,8 @@ export class ServiceConfigService {
 
         return {
             enabled,
-            accountServiceName: accountRoute?.serviceName ?? 'chat-web-account-service',
-            accountFallbackUrl: accountRoute?.fallbackUrl ?? 'http://127.0.0.1:5010',
+            serviceName: authRoute?.serviceName ?? 'chat-web-auth-service',
+            fallbackUrl: authRoute?.fallbackUrl ?? 'http://127.0.0.1:5050',
             introspectionPath,
             timeoutMs,
             serviceToken,

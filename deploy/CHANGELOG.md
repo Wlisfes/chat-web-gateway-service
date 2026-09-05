@@ -12,8 +12,8 @@
 - 机器侧操作：
     1. Nacos 新增 `gateway.principal.secret`（至少 32 位随机串，与各业务服务保持一致）和可选的 `gateway.principal.maxAgeSeconds`（默认 60）。
     2. `gateway.routes` 新增 `/feign/account`、`/feign/finance`、`/feign/crm`、`/feign/skyline` 四条路由，`stripPrefix: false`。
-    3. `gateway.routes` 新增 `/api/auth` 指向鉴权服务；`gateway.auth.accountServiceName` 改为 `chat-web-auth-service`。
-    4. `gateway.auth.publicPaths` 增加 `/api/auth/codex/write` 和 `/api/auth/token/login`。
+    3. `gateway.routes` 新增 `id: auth`、`prefix: /api/auth` 的路由指向鉴权服务；入口认证的内省目标由该路由推导，未配置时回退到 `id: account` 路由，不存在 `gateway.auth.accountServiceName` 配置项。
+    4. `gateway.auth.publicPaths` 显式声明后会覆盖默认值，必须同时保留健康检查与文档路径，并增加 `/api/auth/codex/write` 和 `/api/auth/token/login`。
     5. **云端 Nginx 必须继续只转发 `/api/*`**；`/feign/*` 不得对公网开放。
 - 验证命令：
     ```bash
@@ -30,7 +30,7 @@
 - 变更内容：认证由新增的 `chat-web-auth-service` 承担。`GatewayAuthService` 与 `introspectionPath`（`/internal/auth/token/introspect`）保持不变，仅通过 Nacos 切换目标服务。
 - 机器侧操作：
     1. `gateway.routes` 新增 `/api/auth` → `chat-web-auth-service`（回退地址 `http://chat-web-auth-service:5050`）。
-    2. `gateway.auth.accountServiceName` 改为 `chat-web-auth-service`。
+    2. `gateway.routes` 新增 `id: auth` 路由指向鉴权服务，入口认证内省目标随之切换。
     3. `gateway.auth.publicPaths` 增加 `/api/auth/codex/write` 和 `/api/auth/token/login`；不要加入 `/api/auth/token/resolver`。
     4. 内部内省路径不得加入 `gateway.routes`。
 - 验证命令：
@@ -40,7 +40,7 @@
     curl -i https://chat-web.lisfes.cn/api/account/user/column -H 'authorization: Bearer <access-token>' -X POST
     curl -i https://chat-web.lisfes.cn/api/auth/internal/auth/token/introspect   # 必须 404
     ```
-- 回滚方法：把 `gateway.auth.accountServiceName` 改回 `chat-web-account-service`，Nacos 配置热更新即刻生效，无需重新部署网关。
+- 回滚方法：把 `id: auth` 路由的 `enabled` 置为 `false`，入口认证自动回退到账号服务；Nacos 配置热更新即刻生效，无需重新部署网关。
 
 ## 2026-09-05：迁移网关入口身份认证
 

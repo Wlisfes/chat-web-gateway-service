@@ -44,7 +44,7 @@ export class GatewayAuthService implements OnApplicationBootstrap {
             this.logger.warn('网关入口认证未启用；请在 Nacos gateway.auth.enabled 中明确开启')
             return
         }
-        this.logger.log(`网关入口认证已启用：Account=${options.accountServiceName}，内省超时=${options.timeoutMs}ms`)
+        this.logger.log(`网关入口认证已启用：认证服务=${options.serviceName}，内省超时=${options.timeoutMs}ms`)
     }
 
     /** 校验 HTTP 或 WebSocket 升级请求；公开路径和非网关业务路径直接放行。 */
@@ -75,8 +75,8 @@ export class GatewayAuthService implements OnApplicationBootstrap {
     }
 
     private async introspect(token: string, options: GatewayAuthOptions, requestId?: string): Promise<GatewayAuthPrincipal> {
-        const accountUrl = await this.nacosService.resolveService(options.accountServiceName, options.accountFallbackUrl)
-        const endpoint = new URL(options.introspectionPath, `${accountUrl.replace(/\/+$/, '')}/`)
+        const serviceUrl = await this.nacosService.resolveService(options.serviceName, options.fallbackUrl)
+        const endpoint = new URL(options.introspectionPath, `${serviceUrl.replace(/\/+$/, '')}/`)
         let response: globalThis.Response
         try {
             response = await fetch(endpoint, {

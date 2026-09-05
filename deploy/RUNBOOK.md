@@ -47,11 +47,19 @@ gateway:
         maxAgeSeconds: 60
     auth:
         enabled: true
-        # 内省目标改为鉴权服务；路径保持 /internal/auth/token/introspect。
-        accountServiceName: chat-web-auth-service
+        # 内省路径固定；内省目标不在此配置，而是取 routes 中 id 为 auth 的路由，
+        # 未配置该路由时回退到 id 为 account 的路由。
         introspectionPath: /internal/auth/token/introspect
         timeoutMs: 3000
+        # 显式声明后会覆盖默认值，因此必须把健康检查和文档路径一并列出。
         publicPaths:
+            - /health
+            - /health/live
+            - /health/ready
+            - /doc.html
+            - /services.json
+            - /api/swagger
+            - /api/swagger-json
             - /api/auth/codex/write
             - /api/auth/token/login
     routes:
