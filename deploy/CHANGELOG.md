@@ -491,3 +491,7 @@ curl -fsS http://127.0.0.1:3999/api/account/health
 - 验证：
 - 回滚：
 ```
+# 2026-09-06：补齐账号认证历史路径路由
+
+- 变更内容：Gateway Nacos 追加 `/api/account/auth/**` 到独立 Auth 服务的兼容路由并剥离前缀，保证现有管理端验证码和登录请求继续可用；统一 `/api/auth/**` 路径保持不变。
+- 影响机器：`chat-home-server`；不修改既有认证凭据、业务路由及注释。
