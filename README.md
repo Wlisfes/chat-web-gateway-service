@@ -80,7 +80,12 @@ Nacos 配置内容以远端 `chat-web-gateway-service.yaml` 为唯一运行来�
 
 ```yaml
 gateway:
-    # 入口身份认证配置；服务间凭据统一写在顶层 feign.service_token。
+    feign:
+        # 网关调用内部服务时使用的统一 Gateway 地址、超时和服务间凭据。
+        service_token: replace-with-internal-service-token
+        url: http://chat-web-gateway-service:5000
+        timeout: 3000
+    # 入口身份认证配置；服务间凭据统一写在 gateway.feign.service_token。
     auth:
         enabled: true
         introspectionPath: /internal/auth/token/introspect
@@ -128,9 +133,6 @@ gateway:
           serviceName: chat-web-skyline-service
           fallbackUrl: http://chat-web-skyline-service:5040
           enabled: true
-feign:
-    # 网关调用 Account 内部认证接口使用的服务间凭据；真实值只维护在 Nacos。
-    service_token: replace-with-internal-service-token
 nacos:
     discovery:
         enabled: true
@@ -141,7 +143,7 @@ nacos:
         serviceName: chat-web-gateway-service
 ```
 
-`gateway.auth.enabled` 开启后，网关会使用 `id: auth` 路由的 Nacos 服务发现或 `fallbackUrl` 请求内部认证接口。Gateway Nacos 与 Auth Nacos 的 `feign.service_token` 必须使用同一个真实凭据，真实值不得提交到 Git 或写入 `.env`。网关认证接口不加入 `gateway.routes`，只能通过 Docker 内部网络或服务发现访问。
+`gateway.auth.enabled` 开启后，网关会使用 `id: auth` 路由的 Nacos 服务发现或 `fallbackUrl` 请求内部认证接口。Gateway Nacos 与 Auth Nacos 的 `gateway.feign.service_token` 必须使用同一个真实凭据，真实值不得提交到 Git 或写入 `.env`。网关认证接口不加入 `gateway.routes`，只能通过 Docker 内部网络或服务发现访问。
 
 `publicPaths` 用于声明不需要用户登录的网关路径；登录、验证码、健康检查和 Swagger 必须保留在列表中。新增公开接口时先更新 Nacos 配置，再验证 CORS 和未登录访问结果。认证失败返回 `401`，Account 不可用返回 `503`。
 

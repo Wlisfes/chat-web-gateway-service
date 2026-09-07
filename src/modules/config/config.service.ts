@@ -100,7 +100,7 @@ export class ServiceConfigService {
         )
         const timeoutMs = getPositiveInteger(auth.timeoutMs, 3000, 'gateway.auth.timeoutMs')
         const serviceToken = enabled
-            ? readRequiredString(this.configService.get<unknown>('feign.service_token'), 'feign.service_token')
+            ? readRequiredString(this.configService.get<unknown>('gateway.feign.service_token'), 'gateway.feign.service_token')
             : ''
 
         return {

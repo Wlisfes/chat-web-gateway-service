@@ -28,11 +28,16 @@ export function validateRemoteConfig(config: Record<string, unknown>): void {
     const gateway = getOptionalRecord(config.gateway, 'gateway')
     if (gateway) {
         const auth = getOptionalRecord(gateway.auth, 'gateway.auth')
-        const feign = getOptionalRecord(config.feign, 'feign')
+        const gatewayFeign = getOptionalRecord(gateway.feign, 'gateway.feign')
+        if (gatewayFeign) {
+            normalizeHttpUrl(getRequiredString(gatewayFeign.url, 'gateway.feign.url'), 'gateway.feign.url')
+            parsePositiveInteger(gatewayFeign.timeout, 3000, 'gateway.feign.timeout')
+            getRequiredString(gatewayFeign.service_token, 'gateway.feign.service_token')
+        }
         if (auth) {
             const enabled = getBoolean(auth.enabled, true)
             if (enabled) {
-                getRequiredString(feign?.service_token, 'feign.service_token')
+                getRequiredString(gatewayFeign?.service_token, 'gateway.feign.service_token')
             }
             if (auth.introspectionPath !== undefined) {
                 const path = getRequiredString(auth.introspectionPath, 'gateway.auth.introspectionPath')
