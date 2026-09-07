@@ -3,6 +3,7 @@
 ## 适用范围与工程基准
 
 - 本文件已经复制到每个仓库内，独立生效；根目录 `AGENTS.md` 已废弃，不再作为开发依据。
+- 用户明确点名服务、仓库或目录时，只修改点名目标；不得因共享包联动、依赖检查或关联关系擅自改动其他项目。发布共享包后，只更新用户明确要求联动的消费服务。
 - `chat-web-account-service` 是微服务工程结构、编码格式和命名方式的基准项目。
 - `chat-web-base-schema` 由本仓库内更具体的 Schema 规则和 `docs/schema-conventions.md` 管理。
 - 新建服务时先复制基准工程配置，再删除不需要的业务模块；不要重新发明一套工程格式。
@@ -87,7 +88,7 @@
 
 ## 配置、文档与部署
 
-- 所有 Docker 服务只部署到当前主机 `chat-home-server`；原另一台部署机器已废弃并下线，不得再为其创建部署任务、矩阵项或恢复等待队列。
+- Company 部署机和 `chat-server-company` Runner 已废弃；所有 Docker 服务只部署到当前主机 `chat-home-server`，不得再为 Company 创建部署任务、矩阵项或恢复等待队列。
 - GitHub Actions 的 Self-hosted Runner 选择标签统一使用 `chat-home-server`，部署环境继续使用 `production-home`；每个仓库仍使用独立 Runner 注册和独立 `/opt/<repository-name>` 部署目录。
 - 流水线只构建并发布一次完整 Git SHA 镜像，然后部署到 `chat-home-server`；不得保留无实际目标的多机器部署矩阵。
 - `chat-home-server` 上的部署必须执行容器健康检查、部署后端点验证和失败自动回滚；历史废弃机器的配置仅作为变更记录保留，不得作为当前运行基线。
