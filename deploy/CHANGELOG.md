@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-09：生产 Nacos 切换为云端域名
+
+- 影响机器：`chat-home-server`。
+- 关联版本：当前部署配置变更。
+- 变更内容：生产服务使用 `chat-web-nacos.lisfes.cn:8848` 访问云端 Nacos，绕过不稳定的 WireGuard 地址 `10.66.0.1:8848`；Nacos 配置内容和命名空间不变。
+- 机器侧操作：更新部署目录 `.env` 的 `NACOS_SERVER`，重建 Gateway 容器并确认健康检查通过。
+- 验证命令：检查 `/health`、Nacos 配置加载日志和 `docker ps` 健康状态。
+- 回滚方法：将 `NACOS_SERVER` 恢复为原生产地址并使用当前镜像重新执行 `docker compose up -d`。
+
 ## 2026-09-05：网关签发身份上下文并统一承载服务间调用
 
 - 影响机器：`chat-home-server`。
