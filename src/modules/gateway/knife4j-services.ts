@@ -1,0 +1,42 @@
+import type { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
+
+export interface Knife4jServiceDocument {
+    name: string
+    url: string
+    swaggerVersion: '3.0.0'
+    location: string
+    servicePath?: string
+}
+
+/**
+ * 生成 Knife4j 聚合文档列表。
+ *
+ * `/feign/**` 仅供服务间调用，不作为一套独立业务文档展示；相同服务存在多个公开路由时也只保留第一份。
+ */
+export function createKnife4jServices(routes: GatewayRouteConfig[]): Knife4jServiceDocument[] {
+    const serviceNames = new Set<string>()
+    const publicServices = routes
+        .filter(route => route.enabled && route.prefix.startsWith('/api/'))
+        .filter(route => {
+            if (serviceNames.has(route.serviceName)) return false
+            serviceNames.add(route.serviceName)
+            return true
+        })
+        .map(route => ({
+            name: route.serviceName,
+            url: `${route.prefix}/api/swagger-json`,
+            swaggerVersion: '3.0.0' as const,
+            location: `${route.prefix}/api/swagger`,
+            servicePath: route.prefix
+        }))
+
+    return [
+        {
+            name: '网关服务',
+            url: '/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/swagger'
+        },
+        ...publicServices
+    ]
+}

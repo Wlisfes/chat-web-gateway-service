@@ -4,6 +4,7 @@ const express = require('express')
 const { Logger } = require('@nestjs/common')
 
 const { GatewayProxyService, removeDownstreamCorsHeaders } = require('../dist/modules/gateway/gateway-proxy.service')
+const { shouldLogGatewayRequestPath } = require('../dist/modules/gateway/gateway-request-logging.middleware')
 
 function listen(application) {
     return new Promise((resolve, reject) => {
@@ -33,6 +34,22 @@ test('网关不会透传下游服务的跨域响应头', () => {
     assert.deepEqual(proxyResponse.headers, {
         'content-type': 'application/json; charset=utf-8'
     })
+})
+
+test('网关代理不记录探活和 Swagger JSON 转发日志', () => {
+    const silentPaths = [
+        '/api/account/health',
+        '/api/account/health/live',
+        '/api/account/health/ready',
+        '/api/account/api/swagger-json',
+        '/feign/account/api/swagger-json?refresh=1'
+    ]
+
+    for (const path of silentPaths) {
+        assert.equal(shouldLogGatewayRequestPath(path), false, `${path} 不应记录转发日志`)
+    }
+    assert.equal(shouldLogGatewayRequestPath('/api/account/sheet/column'), true)
+    assert.equal(shouldLogGatewayRequestPath('/api/account/health/detail'), true)
 })
 
 test('网关向下游传递服务前缀且代理错误日志保留完整公开路径', async () => {

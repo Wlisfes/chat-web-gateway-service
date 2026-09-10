@@ -10,6 +10,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 import type { RequestHandler as ProxyRequestHandler } from 'http-proxy-middleware'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
+import { shouldLogGatewayRequestPath } from '@/modules/gateway/gateway-request-logging.middleware'
 import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
 import { GatewayAuthService } from '@/modules/auth/gateway-auth.service'
 
@@ -97,6 +98,7 @@ export class GatewayProxyService {
                 },
                 proxyRes: (proxyResponse, request) => {
                     removeDownstreamCorsHeaders(proxyResponse)
+                    if (!shouldLogGatewayRequestPath(request.originalUrl || request.url)) return
                     const route = this.getMatchedRoute(request)
                     const duration = Date.now() - (this.startedAt.get(request) ?? Date.now())
                     this.logger.log(
@@ -105,9 +107,12 @@ export class GatewayProxyService {
                 },
                 error: (error, request, response) => {
                     const route = this.matchedRoutes.get(request as Request) ?? this.findRoute(request as Request)
-                    this.logger.error(
-                        `${request.method ?? 'UPGRADE'} ${request.originalUrl || request.url || ''} -> ${route?.serviceName ?? 'unknown'}：${error.message}`
-                    )
+                    const requestUrl = request.originalUrl || request.url || ''
+                    if (shouldLogGatewayRequestPath(requestUrl)) {
+                        this.logger.error(
+                            `${request.method ?? 'UPGRADE'} ${requestUrl} -> ${route?.serviceName ?? 'unknown'}：${error.message}`
+                        )
+                    }
 
                     if ('writeHead' in response && 'end' in response) {
                         if (response.headersSent) {

@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
-import { ReadableConsoleLogger, createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
+import { ReadableConsoleLogger } from '@wlisfes/chat-web-base-schema/logging'
 import { GATEWAY_STRIPPED_HEADERS } from '@wlisfes/chat-web-base-schema/auth'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, RequestHandler } from 'express'
@@ -15,6 +15,8 @@ import { AppModule } from '@/app.module'
 import { GatewayAuthService } from '@/modules/auth/gateway-auth.service'
 import { ServiceConfigService } from '@/modules/config/config.service'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
+import { createGatewayRequestLoggingMiddleware } from '@/modules/gateway/gateway-request-logging.middleware'
+import { createKnife4jServices } from '@/modules/gateway/knife4j-services'
 
 const serviceName = 'chat-web-gateway-service'
 const logger = new ReadableConsoleLogger({ NODE_ENV: process.env.NODE_ENV, prefix: serviceName })
@@ -64,7 +66,7 @@ async function bootstrap(): Promise<void> {
         next()
     }) as RequestHandler)
     app.use(requestContextMiddleware)
-    app.use(createRequestLoggingMiddleware(serviceName))
+    app.use(createGatewayRequestLoggingMiddleware(serviceName))
     app.use(
         helmet({
             // Swagger UI 使用内联脚本和样式；CSP 应由最外层反向代理按实际域名配置。
@@ -95,21 +97,7 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup('api/swagger', app, swaggerDocument, {
         jsonDocumentUrl: '/api/swagger-json'
     })
-    const getKnife4jServices = () => [
-        {
-            name: '网关服务',
-            url: '/api/swagger-json',
-            swaggerVersion: '3.0.0',
-            location: '/api/swagger'
-        },
-        ...proxyService.getRoutes().map(route => ({
-            name: route.serviceName,
-            url: `${route.prefix}/api/swagger-json`,
-            swaggerVersion: '3.0.0',
-            location: `${route.prefix}/api/swagger`,
-            servicePath: route.prefix
-        }))
-    ]
+    const getKnife4jServices = () => createKnife4jServices(proxyService.getRoutes())
     expressApplication.get('/services.json', (_request, response) => response.json(getKnife4jServices()))
     expressApplication.get('/doc.html', (_request, response) => {
         response.type('html').set('Cache-Control', 'no-cache').send(knife4jDocumentHtml)
