@@ -17,6 +17,9 @@ export function createKnife4jServices(routes: GatewayRouteConfig[]): Knife4jServ
     const serviceNames = new Set<string>()
     const publicServices = routes
         .filter(route => route.enabled && route.prefix.startsWith('/api/'))
+        // Auth 服务曾保留 `/api/account/auth` 兼容入口，仅用于旧版登录请求，
+        // 该入口不提供独立文档；聚合文档必须使用规范的 `/api/auth` 路由。
+        .filter(route => !(route.serviceName === 'chat-web-auth-service' && route.prefix === '/api/account/auth'))
         .filter(route => {
             if (serviceNames.has(route.serviceName)) return false
             serviceNames.add(route.serviceName)

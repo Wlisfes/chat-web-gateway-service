@@ -10,6 +10,8 @@ test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
         route('account-alias', '/api/account-alias', 'chat-web-account-service'),
         route('finance', '/api/finance', 'chat-web-finance-service'),
         route('feign-finance', '/feign/finance', 'chat-web-finance-service'),
+        route('auth-legacy', '/api/account/auth', 'chat-web-auth-service'),
+        route('auth', '/api/auth', 'chat-web-auth-service'),
         { ...route('disabled', '/api/disabled', 'chat-web-disabled-service'), enabled: false }
     ]
 
@@ -33,6 +35,13 @@ test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
             swaggerVersion: '3.0.0',
             location: '/api/finance/api/swagger',
             servicePath: '/api/finance'
+        },
+        {
+            name: 'chat-web-auth-service',
+            url: '/api/auth/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/auth/api/swagger',
+            servicePath: '/api/auth'
         }
     ])
 })
