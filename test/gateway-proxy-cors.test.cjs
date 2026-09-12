@@ -139,8 +139,8 @@ test('服务间路由保留 /feign 前缀并下发签名身份上下文', async 
 
     try {
         // 服务间调用不经过用户认证，因此不下发身份上下文。
-        await fetch(`${gatewayUrl}/feign/account/consumer/resolver?keyId=12`).then(response => response.json())
-        assert.equal(received.url, '/feign/account/consumer/resolver?keyId=12')
+        await fetch(`${gatewayUrl}/feign/account/consumer/resolve?keyId=12`).then(response => response.json())
+        assert.equal(received.url, '/feign/account/consumer/resolve?keyId=12')
         assert.equal(received.principal, undefined)
     } finally {
         await Promise.all([close(gatewayServer), close(downstreamServer)])

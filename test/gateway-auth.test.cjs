@@ -58,7 +58,7 @@ for (const path of ['/api/account/auth/codex/write', '/api/auth/codex/write', '/
 test('网关认证拒绝缺少 Bearer Token 的业务请求', async () => {
     const service = createService()
     await assert.rejects(
-        service.authenticate({ method: 'GET', originalUrl: '/api/account/user/resolver', header: () => undefined }),
+        service.authenticate({ method: 'GET', originalUrl: '/api/account/user/resolve', header: () => undefined }),
         error => error?.status === 401
     )
 })
@@ -77,7 +77,7 @@ test('网关认证使用独立服务凭据调用 Account 并写入身份主体',
     try {
         const request = {
             method: 'GET',
-            originalUrl: '/api/account/user/resolver',
+            originalUrl: '/api/account/user/resolve',
             header: name => {
                 if (name === 'authorization') return 'Bearer user-token'
                 if (name === 'x-request-id') return 'request-1'
