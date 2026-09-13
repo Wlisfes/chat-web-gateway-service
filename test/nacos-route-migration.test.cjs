@@ -157,11 +157,11 @@ test('Nacos 迁移补齐服务间 /feign 路由并保留前缀', () => {
 
     const migrated = migrateGatewayConfig(content)
 
-    for (const service of ['account', 'finance', 'crm', 'skyline']) {
+    for (const service of ['auth', 'account', 'finance', 'crm', 'skyline']) {
         assert.match(migrated, new RegExp(`prefix: /feign/${service}`))
     }
     // 服务间路由必须显式关闭前缀剥离，否则会打到同名的公开业务路由上。
-    assert.equal(migrated.match(/stripPrefix: false/g).length, 4)
+    assert.equal(migrated.match(/stripPrefix: false/g).length, 5)
 
     // 二次执行保持幂等，不会重复追加路由。
     assert.equal(migrateGatewayConfig(migrated), migrated)
