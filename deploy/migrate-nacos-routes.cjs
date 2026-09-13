@@ -45,6 +45,12 @@ async function configParameters() {
 /** 服务间路由清单；与共享 Feign 客户端声明的 `/feign/<服务名>` 前缀一一对应。 */
 const FEIGN_ROUTES = [
     {
+        id: 'feign-auth',
+        prefix: '/feign/auth',
+        serviceName: 'chat-web-auth-service',
+        fallbackUrl: 'http://chat-web-auth-service:5050'
+    },
+    {
         id: 'feign-account',
         prefix: '/feign/account',
         serviceName: 'chat-web-account-service',
