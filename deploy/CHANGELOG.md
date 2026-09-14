@@ -513,3 +513,8 @@ curl -fsS http://127.0.0.1:3999/api/account/health
 
 - 变更内容：Gateway Nacos 追加 `/api/account/auth/**` 到独立 Auth 服务的兼容路由并剥离前缀，保证现有管理端验证码和登录请求继续可用；统一 `/api/auth/**` 路径保持不变。
 - 影响机器：`chat-home-server`；不修改既有认证凭据、业务路由及注释。
+## 2026-09-14：允许 WireGuard 访问本地 Account 注册端口
+
+- 变更内容：本机防火墙脚本将 Account 服务端口 `5010` 加入 `chat-web-home` WireGuard 入站白名单，使云端 Gateway 能访问注册为 `10.66.0.2:5010` 的本地 Account 实例。
+- 机器侧操作：WireGuard 隧道建立后，以管理员运行 `allow-wireguard-infrastructure.ps1`；确认 Account 监听 `0.0.0.0:5010`，再从云端执行 `nc -vz 10.66.0.2 5010`。
+- 回滚方法：从脚本 `$ports` 移除 `5010` 并重新运行脚本；同时将本地 Account 的 `NACOS_REGISTER_IP` 注释掉并重启服务。

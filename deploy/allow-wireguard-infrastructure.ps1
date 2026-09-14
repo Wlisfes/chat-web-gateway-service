@@ -15,7 +15,8 @@ $ruleName = 'Chat Web infrastructure via WireGuard'
 # 基础设施容器的 RabbitMQ/Kafka 端口均发布到本机回环，再通过独立的
 # WireGuard 端口代理对云端开放，避免 Docker Desktop 占用 10.66.0.2 上的监听地址。
 # 防火墙只放行 WireGuard 实际需要的入口端口，不再放行旧的 5672/15672/9092 监听。
-$ports = [string[]]@('3306', '18080', '18081', '18082', '18083', '80', '443', '8848', '9848')
+# 5010 是本机 Account 进程直接监听的 Nacos 服务实例端口。
+$ports = [string[]]@('3306', '5010', '18080', '18081', '18082', '18083', '80', '443', '8848', '9848')
 $forwardMappings = [ordered]@{
     '18080' = 16379
     '18081' = 15674
