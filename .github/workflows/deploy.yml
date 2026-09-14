@@ -156,12 +156,22 @@ jobs:
               run: |
                   set -eu
                   docker exec chat-web-gateway-service node -e '
+                    const gateway = await fetch("http://127.0.0.1:5000/health", { signal: AbortSignal.timeout(5000) })
+                    if (!gateway.ok) throw new Error(`/health returned HTTP ${gateway.status}`)
+                    const gatewayBody = await gateway.json()
+                    const health = gatewayBody.data
+                    if (gatewayBody.code !== 200 || health?.status !== "UP" || health.discovery?.configLoaded !== true) {
+                      throw new Error("/health returned an unexpected Gateway status")
+                    }
                     const routes = [
-                      { path: "/api/account/health", validate: body => body.code === 200 },
-                      { path: "/api/finance/health", validate: body => body.code === 200 },
-                      { path: "/api/crm/health", validate: body => body.code === 200 },
-                      { path: "/api/skyline/health/live", validate: body => body.status === "UP" }
-                    ]
+                      { serviceName: "chat-web-account-service", path: "/api/account/health", validate: body => body.code === 200 },
+                      { serviceName: "chat-web-finance-service", path: "/api/finance/health", validate: body => body.code === 200 },
+                      { serviceName: "chat-web-crm-service", path: "/api/crm/health", validate: body => body.code === 200 },
+                      { serviceName: "chat-web-skyline-service", path: "/api/skyline/health/live", validate: body => body.status === "UP" }
+                    ].filter(route =>
+                      health.routes.some(item => item.serviceName === route.serviceName && item.healthyInstances > 0)
+                    )
+                    if (routes.length === 0) throw new Error("Nacos 中没有可验证的健康下游服务")
                     const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
                     async function waitForRoute(route) {
                       let lastError
