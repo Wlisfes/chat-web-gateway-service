@@ -63,6 +63,7 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
     }
     let targetUrl
     let forwardedPrefix
+    let resolvedFallback
     const downstreamApplication = express()
     downstreamApplication.use((request, response) => {
         forwardedPrefix = request.headers['x-forwarded-prefix']
@@ -77,7 +78,10 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
             getGatewayRoutes: () => [route]
         },
         {
-            resolveService: async () => targetUrl
+            resolveService: async (_serviceName, fallbackUrl) => {
+                resolvedFallback = fallbackUrl
+                return targetUrl
+            }
         }
     )
     const gatewayApplication = express()
@@ -92,6 +96,7 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
         const proxyResponse = await fetch(`${gatewayUrl}/api/account/sheet/update?source=manager`).then(response => response.json())
         assert.equal(forwardedPrefix, '/api/account')
         assert.equal(proxyResponse.url, '/sheet/update?source=manager')
+        assert.equal(resolvedFallback, '')
 
         Logger.prototype.error = message => errors.push(message)
         targetUrl = 'http://127.0.0.1:1'

@@ -69,8 +69,8 @@ export class GatewayRouteHealthResponseDto {
     @ApiProperty({ description: '健康实例数量', example: 1 })
     healthyInstances: number
 
-    @ApiProperty({ description: '路由目标来源', enum: ['nacos', 'fallback'], example: 'nacos' })
-    source: 'nacos' | 'fallback'
+    @ApiProperty({ description: '路由目标来源', enum: ['nacos', 'fallback', 'unavailable'], example: 'nacos' })
+    source: 'nacos' | 'fallback' | 'unavailable'
 }
 
 export class GatewayLivenessResponseDto {

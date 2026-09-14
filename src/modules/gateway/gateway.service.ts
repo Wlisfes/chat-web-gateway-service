@@ -73,7 +73,7 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
                     id: route.id,
                     serviceName: route.serviceName,
                     healthyInstances,
-                    source: healthyInstances > 0 ? 'nacos' : 'fallback'
+                    source: healthyInstances > 0 ? 'nacos' : route.fallbackEnabled ? 'fallback' : 'unavailable'
                 }
             })
         }

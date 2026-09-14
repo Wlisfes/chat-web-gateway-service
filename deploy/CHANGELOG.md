@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-14：默认禁止 Nacos 路由自动降级到固定地址
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Gateway 当前开发版本。
+- 变更内容：新增 `gateway.routes[].fallbackEnabled`，默认值为 `false`。Nacos 实例下线、无健康实例或服务发现异常时，Gateway 不再使用 `fallbackUrl` 继续访问目标服务，并在健康状态中标记为 `unavailable`。
+- 机器侧操作：更新 Gateway 镜像；确认 Nacos `chat-web-gateway-service.yaml` 路由均为 `fallbackEnabled: false`（已写入当前云端 Nacos 配置）。
+- 验证命令：`curl -i http://127.0.0.1:5000/health`；将测试服务实例设为下线后请求对应 `/api/**`，应返回 502 且不命中固定后备地址；恢复实例后应重新返回 2xx。
+- 回滚方法：将对应路由改为 `fallbackEnabled: true`，或回退 Gateway 镜像到上一版本。
+
 ## 2026-09-09：生产 Nacos 切换为云端域名
 
 - 影响机器：`chat-home-server`。

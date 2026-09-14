@@ -76,9 +76,27 @@ export class GatewayProxyService {
                 }
                 return Boolean(route)
             },
-            router: request => {
+            router: async request => {
                 const route = this.getMatchedRoute(request)
-                return this.nacosService.resolveService(route.serviceName, route.fallbackUrl)
+                if (!route.fallbackEnabled && typeof this.nacosService.getAllInstances === 'function') {
+                    // 订阅回调可能存在短暂延迟；无后备地址的路由每次转发前读取一次
+                    // Nacos 实例列表，避免本地缓存继续命中已在控制台下线的实例。
+                    try {
+                        const instances = await this.nacosService.getAllInstances(route.serviceName, false)
+                        const hasHealthyInstance = instances.some(instance => {
+                            const weight = instance.weight === undefined || instance.weight === null ? 1 : Number(instance.weight)
+                            return instance.healthy && instance.enabled && Number.isFinite(weight) && weight > 0
+                        })
+                        if (!hasHealthyInstance) {
+                            return ''
+                        }
+                    } catch {
+                        return ''
+                    }
+                }
+                // 后备地址必须显式开启；默认传空地址，让 Nacos 无实例时快速失败并返回 502，
+                // 防止控制台下线实例后网关绕过服务发现继续请求固定目标。
+                return this.nacosService.resolveService(route.serviceName, route.fallbackEnabled ? route.fallbackUrl : '')
             },
             pathRewrite: (_path, request) => this.getDownstreamPath(request, this.getMatchedRoute(request)),
             changeOrigin: true,

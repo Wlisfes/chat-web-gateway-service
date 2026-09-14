@@ -81,6 +81,7 @@ function ensureRoute(content, route) {
         `      prefix: ${route.prefix}`,
         `      serviceName: ${route.serviceName}`,
         `      fallbackUrl: ${route.fallbackUrl}`,
+        '      fallbackEnabled: false',
         '      enabled: true'
     ]
     if (route.stripPrefix === false) lines.push('      stripPrefix: false')
@@ -104,6 +105,7 @@ function migrateRoutePrefixes(content) {
             '      prefix: /api/crm\n' +
             '      serviceName: chat-web-crm-service\n' +
             '      fallbackUrl: http://chat-web-crm-service:5020\n' +
+            '      fallbackEnabled: false\n' +
             '      enabled: true\n'
         if (!/^nacos:\s*$/m.test(migrated)) throw new Error('Gateway Nacos config must contain the root nacos section')
         migrated = migrated.replace(/^(nacos:\s*)$/m, `${crmRoute}\n$1`)
@@ -114,6 +116,7 @@ function migrateRoutePrefixes(content) {
             '      prefix: /api/skyline\n' +
             '      serviceName: chat-web-skyline-service\n' +
             '      fallbackUrl: http://chat-web-skyline-service:5040\n' +
+            '      fallbackEnabled: false\n' +
             '      enabled: true\n'
         const nacosIndex = migrated.search(/^nacos:\s*$/m)
         if (nacosIndex < 0) throw new Error('Gateway Nacos config must contain the root nacos section')

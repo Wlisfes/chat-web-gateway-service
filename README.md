@@ -72,7 +72,8 @@ NACOS_CONFIG_DATA_ID=chat-web-gateway-service.yaml
 - `/health/ready`：返回服务发现和路由状态。
 - `/health`：便于人工查看的完整状态。
 
-当 Nacos 没有账号服务实例但后备地址已经配置时，网关仍然处于可用状态，路由状态中的 `source` 会显示为 `fallback`。
+当 Nacos 没有服务实例时，网关默认返回 502，避免服务在 Nacos 控制台下线后仍被固定地址访问。只有路由显式配置
+`fallbackEnabled: true` 时才会启用后备地址；健康状态中的 `source` 会分别显示为 `nacos`、`fallback` 或 `unavailable`。
 
 ## Nacos 网关配置
 
@@ -117,21 +118,25 @@ gateway:
           prefix: /api/account
           serviceName: chat-web-account-service
           fallbackUrl: http://chat-web-account-service:5010
+          fallbackEnabled: false
           enabled: true
         - id: finance
           prefix: /api/finance
           serviceName: chat-web-finance-service
           fallbackUrl: http://chat-web-finance-service:5030
+          fallbackEnabled: false
           enabled: true
         - id: crm
           prefix: /api/crm
           serviceName: chat-web-crm-service
           fallbackUrl: http://chat-web-crm-service:5020
+          fallbackEnabled: false
           enabled: true
         - id: skyline
           prefix: /api/skyline
           serviceName: chat-web-skyline-service
           fallbackUrl: http://chat-web-skyline-service:5040
+          fallbackEnabled: false
           enabled: true
 nacos:
     discovery:
@@ -162,6 +167,7 @@ nacos:
   prefix: /api/chat
   serviceName: chat-web-chat-service
   fallbackUrl: http://chat-web-chat-service:3000
+  fallbackEnabled: false
   enabled: true
 ```
 

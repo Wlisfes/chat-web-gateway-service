@@ -3,6 +3,12 @@ export interface GatewayRouteConfig {
     prefix: string
     serviceName: string
     fallbackUrl: string
+    /**
+     * Nacos 没有可用实例时是否允许转发到固定后备地址。
+     *
+     * 默认关闭，避免实例在 Nacos 控制台下线后仍被网关继续访问。
+     */
+    fallbackEnabled: boolean
     enabled: boolean
     /**
      * 转发到下游时是否剥离路由前缀。

@@ -175,6 +175,7 @@ export function getFallbackGatewayRoutes(environment: Record<string, unknown>): 
             prefix: '/api/account',
             serviceName: readString(environment.ACCOUNT_SERVICE_NAME, 'chat-web-account-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:5010'), 'ACCOUNT_SERVICE_URL'),
+            fallbackEnabled: false,
             enabled: true,
             stripPrefix: true
         },
@@ -183,6 +184,7 @@ export function getFallbackGatewayRoutes(environment: Record<string, unknown>): 
             prefix: '/api/finance',
             serviceName: readString(environment.FINANCE_SERVICE_NAME, 'chat-web-finance-service'),
             fallbackUrl: normalizeHttpUrl(readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:5030'), 'FINANCE_SERVICE_URL'),
+            fallbackEnabled: false,
             enabled: true,
             stripPrefix: true
         }
@@ -211,6 +213,7 @@ export function parseGatewayRoutes(value: unknown): GatewayRouteConfig[] {
             prefix,
             serviceName,
             fallbackUrl,
+            fallbackEnabled: getBoolean(route.fallbackEnabled, false),
             enabled: getBoolean(route.enabled, true),
             // 服务间路由默认保留前缀，客户端路由默认剥离；确有特殊需要时可在 Nacos 显式覆盖。
             stripPrefix: getBoolean(route.stripPrefix, !prefix.startsWith('/feign/'))
