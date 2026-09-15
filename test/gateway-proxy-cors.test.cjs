@@ -110,6 +110,44 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
     }
 })
 
+test('Nacos 没有可用实例时网关返回服务不可用业务码', async () => {
+    const route = {
+        id: 'account',
+        prefix: '/api/account',
+        serviceName: 'chat-web-account-service',
+        fallbackUrl: 'http://127.0.0.1:5010',
+        enabled: true,
+        stripPrefix: true
+    }
+    const gatewayService = new GatewayProxyService(
+        {
+            getProxyTimeout: () => 500,
+            getGatewayRoutes: () => [route]
+        },
+        {
+            resolveService: async () => {
+                throw new Error('Nacos 服务 chat-web-account-service 没有可用实例')
+            }
+        }
+    )
+    const gatewayApplication = express()
+    gatewayService.mount(gatewayApplication)
+    gatewayService.initialize()
+    const gatewayServer = await listen(gatewayApplication)
+    const gatewayUrl = `http://127.0.0.1:${gatewayServer.address().port}`
+
+    try {
+        const response = await fetch(`${gatewayUrl}/api/account/sheet/column`)
+        assert.equal(response.status, 200)
+        const body = await response.json()
+        assert.equal(body.data, null)
+        assert.equal(body.code, 503)
+        assert.equal(body.message, '服务 account 暂时不可用')
+    } finally {
+        await close(gatewayServer)
+    }
+})
+
 test('服务间路由保留 /feign 前缀并下发签名身份上下文', async () => {
     const route = {
         id: 'feign-account',

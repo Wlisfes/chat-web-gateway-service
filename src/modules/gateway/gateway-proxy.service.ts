@@ -31,6 +31,7 @@ export class GatewayProxyService {
     private readonly logger = new Logger(GatewayProxyService.name)
     private readonly startedAt = new WeakMap<Request, number>()
     private readonly matchedRoutes = new WeakMap<Request, GatewayRouteConfig>()
+    private readonly unavailableRequests = new WeakSet<Request>()
     private proxy?: UpgradeableProxy
     private mounted = false
     private upgradeAttached = false
@@ -88,15 +89,27 @@ export class GatewayProxyService {
                             return instance.healthy && instance.enabled && Number.isFinite(weight) && weight > 0
                         })
                         if (!hasHealthyInstance) {
-                            return ''
+                            this.unavailableRequests.add(request)
+                            return 'http://127.0.0.1:1'
                         }
                     } catch {
-                        return ''
+                        this.unavailableRequests.add(request)
+                        return 'http://127.0.0.1:1'
                     }
                 }
-                // 后备地址必须显式开启；默认传空地址，让 Nacos 无实例时快速失败并返回 502，
+                // 后备地址必须显式开启；默认传空地址，让 Nacos 无实例时快速失败并返回 503，
                 // 防止控制台下线实例后网关绕过服务发现继续请求固定目标。
-                return this.nacosService.resolveService(route.serviceName, route.fallbackEnabled ? route.fallbackUrl : '')
+                return this.nacosService.resolveService(route.serviceName, route.fallbackEnabled ? route.fallbackUrl : '').catch(error => {
+                    this.unavailableRequests.add(request)
+                    this.logger.warn(
+                        `${request.method} ${request.originalUrl || request.url} -> ${route.serviceName}：${
+                            error instanceof Error ? error.message : String(error)
+                        }`
+                    )
+                    // Force the proxy error path so the response keeps the gateway's
+                    // established JSON envelope instead of becoming an Express 500.
+                    return 'http://127.0.0.1:1'
+                })
             },
             pathRewrite: (_path, request) => this.getDownstreamPath(request, this.getMatchedRoute(request)),
             changeOrigin: true,
@@ -126,7 +139,9 @@ export class GatewayProxyService {
                 error: (error, request, response) => {
                     const route = this.matchedRoutes.get(request as Request) ?? this.findRoute(request as Request)
                     const requestUrl = request.originalUrl || request.url || ''
-                    if (shouldLogGatewayRequestPath(requestUrl)) {
+                    const resolutionFailed = this.unavailableRequests.has(request as Request)
+                    this.unavailableRequests.delete(request as Request)
+                    if (shouldLogGatewayRequestPath(requestUrl) && !resolutionFailed) {
                         this.logger.error(
                             `${request.method ?? 'UPGRADE'} ${requestUrl} -> ${route?.serviceName ?? 'unknown'}：${error.message}`
                         )
@@ -139,7 +154,7 @@ export class GatewayProxyService {
                         }
                         response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
                         response.end(
-                            JSON.stringify(createApiResponse(null, { code: 502, message: `服务 ${route?.id ?? 'unknown'} 暂时不可用` }))
+                            JSON.stringify(createApiResponse(null, { code: 503, message: `服务 ${route?.id ?? 'unknown'} 暂时不可用` }))
                         )
                         return
                     }

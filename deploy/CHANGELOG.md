@@ -9,6 +9,18 @@
 - 验证命令：`curl -i http://127.0.0.1:5000/health`；将测试服务实例设为下线后请求对应 `/api/**`，应返回 502 且不命中固定后备地址；恢复实例后应重新返回 2xx。
 - 回滚方法：将对应路由改为 `fallbackEnabled: true`，或回退 Gateway 镜像到上一版本。
 
+## 2026-09-15：修复 Nacos 下线实例仍被网关回退转发
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Gateway 与共享包当前 `developer` 分支改动。
+- 变更内容：
+    - Gateway 每次解析服务路由时刷新 Nacos 实例状态，避免沿用已下线实例缓存。
+    - Nacos 已连接但目标服务没有健康启用实例时不再使用 `fallbackUrl`。
+    - 代理解析失败统一返回业务码 `503`，避免异步路由解析异常变成 HTTP 500。
+- 机器侧操作：发布新的共享包后升级 Gateway 依赖并重建 Gateway 容器；无需修改 Nacos 配置。
+- 验证命令：将 `chat-web-account-service` 的 Nacos 实例设置为 `enabled=false`，确认 `/api/account/sheet/tree/structure` 和 `/api/account/sheet/column` 返回业务码 `503`；恢复 `enabled=true` 后确认两个接口恢复成功，并检查 `/health` 的 Account 路由来源为 `nacos`。
+- 回滚方法：回退 Gateway 镜像和共享包版本；Nacos 实例的 `enabled` 状态按验证结束时的线上状态恢复。
+
 ## 2026-09-09：生产 Nacos 切换为云端域名
 
 - 影响机器：`chat-home-server`。

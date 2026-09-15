@@ -62,6 +62,7 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
 
     /**网关及服务发现健康状态。*/
     public async httpBaseGatewayHealth(): Promise<GatewayHealthResponseDto> {
+        await this.refreshRoutes()
         const discovery = this.nacosService.getStatus()
         return {
             status: 'UP',
