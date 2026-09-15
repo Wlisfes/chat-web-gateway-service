@@ -3,7 +3,11 @@ const assert = require('node:assert/strict')
 const express = require('express')
 const { Logger } = require('@nestjs/common')
 
-const { GatewayProxyService, removeDownstreamCorsHeaders } = require('../dist/modules/gateway/gateway-proxy.service')
+const {
+    GatewayProxyService,
+    isRoutableNacosInstance,
+    removeDownstreamCorsHeaders
+} = require('../dist/modules/gateway/gateway-proxy.service')
 const { shouldLogGatewayRequestPath } = require('../dist/modules/gateway/gateway-request-logging.middleware')
 
 function listen(application) {
@@ -185,6 +189,102 @@ test('服务间路由保留 /feign 前缀并下发签名身份上下文', async 
         await fetch(`${gatewayUrl}/feign/account/consumer/resolve?keyId=12`).then(response => response.json())
         assert.equal(received.url, '/feign/account/consumer/resolve?keyId=12')
         assert.equal(received.principal, undefined)
+    } finally {
+        await Promise.all([close(gatewayServer), close(downstreamServer)])
+    }
+})
+
+test('网关将缺失健康标记视为可路由，并将 enabled=false 视为下线', () => {
+    assert.equal(isRoutableNacosInstance({ ip: '10.0.0.1', port: 5050 }), true)
+    assert.equal(isRoutableNacosInstance({ healthy: true, enabled: 'false', weight: 1 }), false)
+    assert.equal(isRoutableNacosInstance({ healthy: 'true', enabled: 'true', weight: '0' }), false)
+    assert.equal(isRoutableNacosInstance({ healthy: true, enabled: true, weight: 2 }), true)
+})
+
+test('Nacos 实例全部下线时网关不走后备地址并返回 503', async () => {
+    const route = {
+        id: 'auth',
+        prefix: '/api/auth',
+        serviceName: 'chat-web-auth-service',
+        fallbackUrl: 'http://chat-web-auth-service:5050',
+        fallbackEnabled: false,
+        enabled: true,
+        stripPrefix: true
+    }
+    let resolveCalls = 0
+    const gatewayService = new GatewayProxyService(
+        {
+            getProxyTimeout: () => 500,
+            getGatewayRoutes: () => [route]
+        },
+        {
+            getAllInstances: async () => [],
+            resolveService: async () => {
+                resolveCalls += 1
+                return route.fallbackUrl
+            }
+        }
+    )
+    const gatewayApplication = express()
+    gatewayService.mount(gatewayApplication)
+    gatewayService.initialize()
+    const gatewayServer = await listen(gatewayApplication)
+    const gatewayUrl = 'http://127.0.0.1:' + gatewayServer.address().port
+
+    try {
+        const response = await fetch(gatewayUrl + '/api/auth/codex/write?inverse=0')
+        assert.equal(response.status, 200)
+        const body = await response.json()
+        assert.equal(body.data, null)
+        assert.equal(body.code, 503)
+        assert.equal(body.message, '服务 auth 暂时不可用')
+        assert.equal(resolveCalls, 0)
+    } finally {
+        await close(gatewayServer)
+    }
+})
+
+test('多个实例仅部分在线时网关继续转发到服务发现结果', async () => {
+    const route = {
+        id: 'auth',
+        prefix: '/api/auth',
+        serviceName: 'chat-web-auth-service',
+        fallbackUrl: 'http://chat-web-auth-service:5050',
+        fallbackEnabled: false,
+        enabled: true,
+        stripPrefix: true
+    }
+    let received
+    const downstreamApplication = express()
+    downstreamApplication.use((request, response) => {
+        received = request.originalUrl
+        response.json({ ok: true })
+    })
+    const downstreamServer = await listen(downstreamApplication)
+    const targetUrl = 'http://127.0.0.1:' + downstreamServer.address().port
+    const gatewayService = new GatewayProxyService(
+        {
+            getProxyTimeout: () => 500,
+            getGatewayRoutes: () => [route]
+        },
+        {
+            getAllInstances: async () => [
+                { ip: '10.0.0.12', port: 5050, healthy: true, enabled: false, weight: 1 },
+                { ip: '10.0.0.13', port: 5050, healthy: true, enabled: true, weight: 1 }
+            ],
+            resolveService: async () => targetUrl
+        }
+    )
+    const gatewayApplication = express()
+    gatewayService.mount(gatewayApplication)
+    gatewayService.initialize()
+    const gatewayServer = await listen(gatewayApplication)
+    const gatewayUrl = 'http://127.0.0.1:' + gatewayServer.address().port
+
+    try {
+        const body = await fetch(gatewayUrl + '/api/auth/codex/write').then(response => response.json())
+        assert.equal(body.ok, true)
+        assert.equal(received, '/codex/write')
     } finally {
         await Promise.all([close(gatewayServer), close(downstreamServer)])
     }

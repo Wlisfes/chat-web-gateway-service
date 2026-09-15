@@ -18,6 +18,35 @@ type UpgradeableProxy = ProxyRequestHandler & {
     upgrade: (request: Request, socket: Socket, head: Buffer) => void
 }
 
+function parseGatewayInstanceFlag(value: unknown, fallback: boolean): boolean {
+    if (typeof value === 'boolean') {
+        return value
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value !== 0
+    }
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase()
+        if (normalized === 'true' || normalized === '1') {
+            return true
+        }
+        if (normalized === 'false' || normalized === '0') {
+            return false
+        }
+    }
+    return fallback
+}
+
+export function isRoutableNacosInstance(instance: { healthy?: unknown; enabled?: unknown; weight?: unknown }): boolean {
+    const weight = instance.weight === undefined || instance.weight === null || instance.weight === '' ? 1 : Number(instance.weight)
+    return (
+        parseGatewayInstanceFlag(instance.healthy, true) &&
+        parseGatewayInstanceFlag(instance.enabled, true) &&
+        Number.isFinite(weight) &&
+        weight > 0
+    )
+}
+
 export function removeDownstreamCorsHeaders(proxyResponse: Pick<IncomingMessage, 'headers'>): void {
     for (const headerName of Object.keys(proxyResponse.headers)) {
         if (headerName.toLowerCase().startsWith('access-control-')) {
@@ -84,10 +113,7 @@ export class GatewayProxyService {
                     // Nacos 实例列表，避免本地缓存继续命中已在控制台下线的实例。
                     try {
                         const instances = await this.nacosService.getAllInstances(route.serviceName, false)
-                        const hasHealthyInstance = instances.some(instance => {
-                            const weight = instance.weight === undefined || instance.weight === null ? 1 : Number(instance.weight)
-                            return instance.healthy && instance.enabled && Number.isFinite(weight) && weight > 0
-                        })
+                        const hasHealthyInstance = instances.some(instance => isRoutableNacosInstance(instance))
                         if (!hasHealthyInstance) {
                             this.unavailableRequests.add(request)
                             return 'http://127.0.0.1:1'
