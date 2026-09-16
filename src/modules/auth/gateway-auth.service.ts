@@ -16,6 +16,8 @@ import type { GatewayAuthOptions } from '@/modules/gateway/gateway.interface'
 
 export interface GatewayAuthPrincipal {
     uid: string
+    number: string
+    name: string
     sessionId: string
 }
 
@@ -165,6 +167,11 @@ export class GatewayAuthService implements OnApplicationBootstrap {
         return (
             typeof principal.uid === 'string' &&
             principal.uid.length > 0 &&
+            typeof principal.number === 'string' &&
+            principal.number.length === 4 &&
+            typeof principal.name === 'string' &&
+            principal.name.length >= 2 &&
+            principal.name.length <= 32 &&
             typeof principal.sessionId === 'string' &&
             principal.sessionId.length > 0
         )
