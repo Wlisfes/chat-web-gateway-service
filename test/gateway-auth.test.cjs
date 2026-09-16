@@ -69,10 +69,13 @@ test('网关认证使用独立服务凭据调用 Account 并写入身份主体',
     let requestInit
     global.fetch = async (_url, init) => {
         requestInit = init
-        return new Response(JSON.stringify({ code: 200, message: 'success', data: { uid: '1001', sessionId: 'session-1' } }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' }
-        })
+        return new Response(
+            JSON.stringify({ code: 200, message: 'success', data: { uid: '1001', number: '1234', name: '张三', sessionId: 'session-1' } }),
+            {
+                status: 200,
+                headers: { 'content-type': 'application/json' }
+            }
+        )
     }
     try {
         const request = {
@@ -85,7 +88,7 @@ test('网关认证使用独立服务凭据调用 Account 并写入身份主体',
             }
         }
         const principal = await service.authenticate(request)
-        assert.deepEqual(principal, { uid: '1001', sessionId: 'session-1' })
+        assert.deepEqual(principal, { uid: '1001', number: '1234', name: '张三', sessionId: 'session-1' })
         assert.deepEqual(request.user, principal)
         assert.equal(requestInit.headers['x-service-token'], 'internal-token')
         assert.equal(requestInit.headers['x-request-id'], 'request-1')
