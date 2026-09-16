@@ -110,6 +110,20 @@
 - 涉及代理、数据库、服务发现或部署时，必须增加对应的运行级验证。
 - 修改公共工程规约时，同步检查所有现有微服务，避免只修新项目而留下配置分叉。
 
+## 版本号与发布
+
+- `package.json` 的 `version` 是本仓库唯一维护的发布版本号，格式固定为 `MAJOR.MINOR.PATCH`。
+- 日常开发、缺陷修复和合并 `developer` 时不得改动 `version`。
+- 只有用户明确要求发布/部署并合并 `main` 时才变更版本号。每次发布必须自增一个修订号（小版本），规则与 `chat-web-base-schema` 一致：
+    - 以当前 `package.json` 版本和已发布版本中的较大者为基准
+    - 已发布版本：共享包核对 GitHub Packages；其他仓库核对 git tag `vX.Y.Z`
+    - 若当前版本尚未发布，则直接使用当前版本
+    - 若当前版本已发布，则 `PATCH + 1`（例如 `1.0.0` → `1.0.1`）
+    - 当 `PATCH` 达到 `99` 时进位：`MINOR + 1` 且 `PATCH` 归 `0`（例如 `1.0.99` → `1.1.0`）
+    - 不得发布已经存在的版本号，不得跳号、降版本或使用预发布标签
+- `chat-web-base-schema` 由 `main` 上的 Publish 流水线自动计算版本、发布到 GitHub Packages、回写 `package.json` 并打 `vX.Y.Z` 标签；Agent 不得在本地修改共享包版本号，也不得执行 `npm publish`。
+- 其他服务和管理端在合并 `main` 发布前，由 Agent 将 `package.json` 的 `version` 改为下一个修订号，提交信息使用 `chore(release): vX.Y.Z`，并同步打 `vX.Y.Z` 标签；Docker 镜像仍按 Git SHA 构建部署。
+
 ## 本仓库专属补充规约
 
 以下规则在通用规约基础上适用于本仓库；如涉及本仓库专属边界，以本节的具体约束为准。
