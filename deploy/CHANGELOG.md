@@ -1,5 +1,15 @@
 # 部署变更记录
 
+## 2026-09-17：P0 事故，同机业务服务禁止注册 WireGuard 地址
+
+- 影响机器：`chat-home-server`。
+- 事故级别：P0。Skyline/Finance/Auth/Account 被强制注册 `10.66.0.2` 后，同机 Gateway 转发业务 503。
+- 根因：Docker Desktop 不把业务端口映射到 WireGuard 网卡；Skyline `5040` 还曾被 `CDPSvc` 占用。同机 Gateway 只能访问容器网卡 IP，不能访问 `10.66.0.2:<port>`。
+- 错误处置：继续把 `NACOS_REGISTER_IP=10.66.0.2` 写进业务服务。
+- 正确处置：四个业务服务删除 `NACOS_REGISTER_IP` 并重建，注册容器网卡 IP。公网仍走本机 Nginx `80/443` → Gateway。不要改 CRM，也不要为修业务 503 去改 Gateway 自己的 `NACOS_REGISTER_IP`。
+- 验证命令：Gateway 容器内及公网 `https://chat.lisfes.cn` 检查 `/api/skyline/health/live`、`/api/finance/health`、`/api/auth/health`、`/api/account/health`、`/api/auth/codex/write` 均为 HTTP 200。
+- 回滚方法：禁止回滚到强制业务服务注册 `10.66.0.2` 的部署逻辑。完整事故见 `deploy/RUNBOOK.md`。
+
 ## 2026-09-16：修复跨主机服务发现和本地网关接管入口
 
 - 影响机器：`chat-home-server`、云端 Nacos、云端及本机 Nginx。
