@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-09-16：修复跨主机服务发现和本地网关接管入口
+
+- 影响机器：`chat-home-server`、云端 Nacos、云端及本机 Nginx。
+- 变更内容：部署时统一维护 Gateway 的 `NACOS_REGISTER_IP`；本机 Nginx 优先转发到宿主机本地 Gateway，未运行时回退到 Docker Gateway；WireGuard 防火墙脚本统一放行 Gateway、Account、Auth、Finance、CRM 和 Skyline 端口。
+- 机器侧操作：部署后以管理员运行 `deploy/allow-wireguard-infrastructure.ps1`，确认公网 `chat-web.lisfes.cn` 经本机 Nginx 到达当前本地 Gateway。
+- 验证命令：检查 Nacos 六个服务实例地址、`Test-NetConnection 10.66.0.2 -Port 5000/5010/5020/5030/5040/5050` 和公网 `/health`。
+- 回滚方法：回退 Gateway 镜像和本机 Nginx 配置，恢复仅使用 Docker Gateway 的入口及原有端口白名单。
+
 ## 2026-09-16：发布 v1.0.0，网关身份主体补充工号和姓名
 
 - 影响机器：`chat-home-server`。

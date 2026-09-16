@@ -74,6 +74,7 @@ jobs:
         env:
             DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-gateway-service' }}
             DEPLOYMENT_ENVIRONMENT: production-home
+            DEFAULT_NACOS_REGISTER_IP: ${{ vars.NACOS_REGISTER_IP || '' }}
             IMAGE: ${{ needs.build.outputs.image }}
 
         steps:
@@ -116,7 +117,22 @@ jobs:
               shell: bash
               run: |
                   set -eu
-                  sed -i -E '/^NACOS_(REQUEST_TIMEOUT|REGISTER_PORT|REGISTER_IP|REGISTER_REQUIRED|GROUP|CONFIG_GROUP)=/d' "$DEPLOY_PATH/.env"
+                  sed -i -E '/^NACOS_(REQUEST_TIMEOUT|REGISTER_PORT|REGISTER_REQUIRED|GROUP|CONFIG_GROUP)=/d' "$DEPLOY_PATH/.env"
+
+            - name: 确保 Nacos 注册地址跨主机可达
+              shell: bash
+              run: |
+                  set -eu
+                  configured_ip="${DEFAULT_NACOS_REGISTER_IP:-}"
+                  existing_ip="$(sed -n 's/^NACOS_REGISTER_IP=//p' "$DEPLOY_PATH/.env" | tail -n 1 | tr -d '\r')"
+                  register_ip="${existing_ip:-$configured_ip}"
+                  register_ip="${register_ip:-10.66.0.2}"
+                  if [[ ! "$register_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+                      echo "NACOS_REGISTER_IP must be a valid IPv4 address: $register_ip" >&2
+                      exit 1
+                  fi
+                  sed -i '/^NACOS_REGISTER_IP=/d' "$DEPLOY_PATH/.env"
+                  printf '\n# 注册到 Nacos 的跨主机可达地址；优先使用目标机现有配置。\nNACOS_REGISTER_IP=%s\n' "$register_ip" >> "$DEPLOY_PATH/.env"
 
             - name: Migrate Nacos route prefixes
               shell: bash
