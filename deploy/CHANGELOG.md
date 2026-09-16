@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-16：发布 v1.0.0，网关身份主体补充工号和姓名
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Gateway `v1.0.0`；`@wlisfes/chat-web-base-schema@1.6.31`。
+- 变更内容：网关校验并签发的身份主体增加不可变字段 `number`、`name`，写入 `x-gateway-principal`。升级共享包到 `1.6.31`。
+- 机器侧操作：确认 Auth 已部署本批次后再切换 Gateway 镜像。
+- 验证命令：`yarn test`；部署后登录并请求需鉴权接口，下游应能解析到工号和姓名。
+- 回滚方法：恢复上一完整 Git SHA。
+
 ## 2026-09-14：默认禁止 Nacos 路由自动降级到固定地址
 
 - 影响机器：`chat-home-server`。
