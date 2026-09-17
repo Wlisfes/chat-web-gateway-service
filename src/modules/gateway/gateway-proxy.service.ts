@@ -3,6 +3,7 @@ import type { Socket } from 'node:net'
 import { Injectable, Logger, Optional } from '@nestjs/common'
 import { GATEWAY_PRINCIPAL_HEADER } from '@wlisfes/chat-web-base-schema/auth'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { BUSINESS_CODE_HEADER, isBusinessSuccessStatus, parseBusinessStatusCode, parseJsonBusinessCode } from '@wlisfes/chat-web-base-schema/logging'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import { resolveRequestId } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, Request, RequestHandler, Response } from 'express'
@@ -55,6 +56,58 @@ export function removeDownstreamCorsHeaders(proxyResponse: Pick<IncomingMessage,
     }
 }
 
+const MAX_GATEWAY_BUSINESS_BODY_PEEK = 4096
+
+/** 优先读取业务码响应头，HTTP 非 200 次之，最后回退响应体 code。 */
+export function resolveGatewayBusinessStatusCode(
+    headers: IncomingMessage['headers'] | Record<string, unknown>,
+    httpStatus = 200,
+    bodyText?: string
+): number {
+    const headerCode = parseBusinessStatusCode(headers[BUSINESS_CODE_HEADER])
+    if (headerCode !== undefined) return headerCode
+    if (httpStatus !== 200) return httpStatus
+    return parseJsonBusinessCode(bodyText ?? '') ?? httpStatus
+}
+
+function observeProxyBusinessStatusCode(proxyResponse: IncomingMessage, onCode: (code: number) => void): void {
+    const httpStatus = proxyResponse.statusCode ?? 200
+    const headerCode = parseBusinessStatusCode(proxyResponse.headers[BUSINESS_CODE_HEADER])
+    if (headerCode !== undefined) {
+        onCode(headerCode)
+        return
+    }
+    if (httpStatus !== 200) {
+        proxyResponse.headers[BUSINESS_CODE_HEADER] = String(httpStatus)
+        onCode(httpStatus)
+        return
+    }
+
+    let text = ''
+    let settled = false
+    const finish = () => {
+        if (settled) return
+        settled = true
+        onCode(parseJsonBusinessCode(text) ?? httpStatus)
+    }
+
+    proxyResponse.on('data', (chunk: Buffer | string) => {
+        if (settled) return
+        if (text.length < MAX_GATEWAY_BUSINESS_BODY_PEEK) {
+            text += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk)
+            if (text.length > MAX_GATEWAY_BUSINESS_BODY_PEEK) text = text.slice(0, MAX_GATEWAY_BUSINESS_BODY_PEEK)
+        }
+        const code = parseJsonBusinessCode(text)
+        if (code !== undefined) {
+            settled = true
+            onCode(code)
+        }
+    })
+    proxyResponse.on('end', finish)
+    proxyResponse.on('aborted', finish)
+    proxyResponse.on('error', finish)
+}
+
 @Injectable()
 export class GatewayProxyService {
     private readonly logger = new Logger(GatewayProxyService.name)
@@ -79,6 +132,7 @@ export class GatewayProxyService {
 
         const handler: RequestHandler = (request: Request, response: Response, next) => {
             if (!this.proxy) {
+                response.setHeader(BUSINESS_CODE_HEADER, '503')
                 response.status(200).json(createApiResponse(null, { code: 503, message: '网关配置正在初始化' }))
                 return
             }
@@ -158,9 +212,11 @@ export class GatewayProxyService {
                     if (!shouldLogGatewayRequestPath(request.originalUrl || request.url)) return
                     const route = this.getMatchedRoute(request)
                     const duration = Date.now() - (this.startedAt.get(request) ?? Date.now())
-                    this.logger.log(
-                        `${request.method} ${request.originalUrl} -> ${route.serviceName} ${proxyResponse.statusCode} ${duration}ms`
-                    )
+                    observeProxyBusinessStatusCode(proxyResponse, statusCode => {
+                        const message = `${request.method} ${request.originalUrl} -> ${route.serviceName} ${statusCode} ${duration}ms`
+                        if (isBusinessSuccessStatus(statusCode)) this.logger.log(message)
+                        else this.logger.error(message)
+                    })
                 },
                 error: (error, request, response) => {
                     const route = this.matchedRoutes.get(request as Request) ?? this.findRoute(request as Request)
@@ -178,7 +234,7 @@ export class GatewayProxyService {
                             response.end()
                             return
                         }
-                        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+                        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', [BUSINESS_CODE_HEADER]: '503' })
                         response.end(
                             JSON.stringify(createApiResponse(null, { code: 503, message: `服务 ${route?.id ?? 'unknown'} 暂时不可用` }))
                         )
