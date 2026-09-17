@@ -70,7 +70,10 @@ async function bootstrap(): Promise<void> {
     app.use(
         helmet({
             // Swagger UI 使用内联脚本和样式；CSP 应由最外层反向代理按实际域名配置。
-            contentSecurityPolicy: false
+            contentSecurityPolicy: false,
+            // 生产前端在 chat.lisfes.cn，API 在 chat-web.lisfes.cn。默认
+            // CORP=same-origin 会让跨域验证码图片和带凭证请求在浏览器被拦。
+            crossOriginResourcePolicy: { policy: 'cross-origin' }
         })
     )
 

@@ -103,6 +103,77 @@ curl -fsS http://127.0.0.1:5040/health/live
 
 预期：四个业务容器 `NACOS_REGISTER_IP` 为空；Gateway 与公网健康检查均为 HTTP 200 且业务 UP；验证码 `codex/write` 为 200。`127.0.0.1:5040` 可以为 200。`10.66.0.2:5040` / `10.66.0.2:5030` 超时 **不** 表示故障，也不要据此把 WireGuard 地址写回 Nacos。
 
+### 何时写 `NACOS_REGISTER_IP`
+
+`.env` 里的 `NACOS_REGISTER_IP` 只表示 **Nacos 服务发现里登记的实例 IP**，给 **将要调用它的 Gateway** 连。它不是公网入口，也不是“要不要把流量切到本地”的开关。流量切到本地靠 `NACOS_REGISTER_WEIGHT`，不靠把 Nginx 上游换成 `host.docker.internal`。
+
+| 场景 | 写不写 | 写什么 |
+| --- | --- | --- |
+| 同机 Docker 业务容器（生产基线） | **不写** | 进程自动登记容器网卡 IP，同机 Gateway 走 Docker 网络即可访问 |
+| 本机 `yarn dev` / `nest --watch` 业务进程，要让 **同机 Docker Gateway** 按高权重转发过来 | **要写** | 写 Gateway **容器内**能访问的宿主机地址。当前 Gateway 在 `172.20.0.0/16`，宿主机桥接网关是 `172.20.0.1`。不要写 `127.0.0.1`，也不要写 `10.66.0.2` |
+| 本机进程要被 **另一台机器** 经 WireGuard 发现 | **要写，且先探测** | 才考虑 `10.66.0.2`。必须先从那台机器上的 Gateway 证实 `IP:port` 可达，失败就不要登记 |
+| Gateway 自己 | 可保留跨主机发现地址 | 公网入口走 Nginx `80/443`，不要为了修业务 503 去改或清空它 |
+| CRM | 不在本次范围 | 不要借这次问题改 CRM |
+
+同机 Docker Gateway 打 `10.66.0.2:5010/5030/5040/5050` 会超时，这是 Docker Desktop 不把端口映射到 WireGuard 网卡，**不**表示本地高权重联调本身是错的。
+
+本地联调正确姿势：业务服务 `.env` 设 `NACOS_REGISTER_WEIGHT=10`（容器实例保持 `1`），并写入 Gateway 可达的 `NACOS_REGISTER_IP`。Gateway 按平滑加权选实例，权重大的多吃流量。公网入口仍必须打到 Docker Gateway，由它处理 CORS / 鉴权 / Helmet。
+
+## P0 事故：Nginx 把整个 Gateway 换成本地进程，登录跨域（2026-09-17）
+
+这和「本地业务服务注册到 Nacos、权重更高、Gateway 转发到本地」不是同一件事。后者是正常联调；本次事故是入口层把 **Gateway 自己** 换掉了。
+
+### 影响
+
+- 级别：P0。生产登录页 `https://chat.lisfes.cn/login` 验证码加载失败，控制台 `CORS: No Access-Control-Allow-Origin` + `net::ERR_FAILED 200`。
+- 页面在 `chat.lisfes.cn`，验证码和 API 请求打到 `https://chat-web.lisfes.cn/api/auth/codex/write`，带 `withCredentials`。
+- 用户看到「加载失败，点击重试」。Nacos CORS 白名单当时是正常的，不要先去改白名单。
+
+### 两层转发，不要混
+
+| 层 | 正常 | 不正常 |
+| --- | --- | --- |
+| 公网 → Nginx → Gateway | 始终打到 Docker `chat-web-gateway-service:5000`。CORS、鉴权、Helmet 只在这里发 | Nginx 优先 `host.docker.internal:5000`，本地 `yarn dev` 的 Gateway 顶替生产入口 |
+| Gateway → 业务服务 | 按 Nacos 平滑加权选实例。本地进程 `NACOS_REGISTER_WEIGHT=10`、容器保持 `1`，流量就会偏向本地 | 本地进程登记 `127.0.0.1` 或同机 Gateway 打不通的 `10.66.0.2`，表现为 503，不是跨域 |
+
+### 时间线
+
+1. 2026-09-16：本机 Nginx `web-gateway.conf` 被改成优先 `host.docker.internal:5000`，Docker Gateway 只作 backup。这会换掉整个入口，而不是按服务权重切某一条业务。
+2. 2026-09-17 约 07:59：生产机启动 Gateway 的 `yarn run dev` / `nest start --watch`，本机 `node dist/main` 监听 `0.0.0.0:5000`。
+3. 公网 `chat-web.lisfes.cn` 被送到这个开发网关。本地网关缺完整 `/api/auth` 路由或 CORS 头，验证码失败且无 `Access-Control-Allow-Origin`。
+4. 停掉占用 5000 的开发网关后，公网重新打到 Docker Gateway，ACAO 恢复。但 Helmet 默认仍返回 `Cross-Origin-Resource-Policy: same-origin`，跨域验证码仍可能被拦。
+5. 修复：生产 Nginx 只反代 Docker Gateway；Nginx 覆盖 `CORP=cross-origin`；Gateway `helmet` 同步改为 `cross-origin`。本地业务联调继续用 Nacos 高权重，不要再用 Nginx 换入口。
+
+### 根因
+
+1. 用 Nginx 上游模拟“本地优先”，等于换掉生产 Gateway，CORS/鉴权头不再由生产网关签发。
+2. 前端与 API 分属 `chat.lisfes.cn` 和 `chat-web.lisfes.cn`。即使 ACAO 正确，Helmet 默认 `CORP=same-origin` 仍会拦跨域验证码。
+
+### 错误处置（禁止再做）
+
+- 看到登录跨域就去改 Nacos `gateway.cors` 白名单，而不先确认响应是不是 Docker Gateway 返回的。
+- 生产 Nginx 优先 `host.docker.internal:5000` 来做本地联调。本地联调应走 Nacos 权重，而不是换入口。
+- 把「本地高权重转发」和「本机 Gateway 占用 5000」当成同一件事，进而禁止所有本地注册。
+- 只停开发进程、不改 Nginx 上游；下次 Gateway `nest --watch` 一起来，公网再次被换成无 CORS 的本地网关。
+
+### 正确处置
+
+1. 生产入口只反代 `chat-web-gateway-service:5000`。
+2. 本地要接某条业务流量：该服务 `.env` 写更高的 `NACOS_REGISTER_WEIGHT`，以及 Gateway 容器可达的 `NACOS_REGISTER_IP`。
+3. Nginx 对 API 覆盖 `Cross-Origin-Resource-Policy: cross-origin`，并 `proxy_hide_header` 掉上游 `same-origin`。
+4. Gateway `helmet` 显式设置 `crossOriginResourcePolicy: { policy: 'cross-origin' }`。
+
+### 验收命令
+
+```bash
+netstat -ano | findstr :5000
+docker exec chat-web-nginx nginx -t
+curl -sI -H "Origin: https://chat.lisfes.cn" https://chat-web.lisfes.cn/api/auth/codex/write
+curl -sI -H "Origin: https://chat.lisfes.cn" https://chat.lisfes.cn/api/auth/codex/write
+```
+
+预期：公网验证码 HTTP 200、`Content-Type: image/svg+xml`、`Access-Control-Allow-Origin: https://chat.lisfes.cn`、`Access-Control-Allow-Credentials: true`、`Cross-Origin-Resource-Policy: cross-origin`。宿主机不要再有非 Docker 的 `node dist/main` 监听 `5000`。
+
 
 ## 认证与服务间路由配置
 
@@ -349,6 +420,7 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 | 业务请求统一返回 `401` | Gateway `gateway.auth.publicPaths` 缺少登录、验证码或文档路径 | 补齐 Nacos 公开路径后等待配置订阅生效，再验证预检和登录               |
 | Gateway 认证返回 `503` | Auth 内部认证接口不可达或服务凭据缺失/不一致                  | 检查 Auth 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
 | 管理端 CORS 预检失败   | Nacos 未启用凭据或未允许管理端 Origin                         | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头             |
+| 登录页验证码跨域 / `ERR_FAILED 200` | Nginx 把整个 Gateway 换成本地 `yarn dev`，或 Helmet `CORP=same-origin` | Nginx 只反代 Docker Gateway 并覆盖 `CORP=cross-origin`；本地业务联调用 Nacos 高权重，不要换入口；不要先改 Nacos CORS |
 | Redis 域名连接超时     | 云端仍转发到旧的 6379，或本机 18080 代理缺失                  | 确认云端上游为 `10.66.0.2:18080`，重跑端口代理脚本并检查 16379 映射   |
 | 业务健康检查 503 但容器自身 UP | 同机服务把 Nacos 注册成不可达的 `10.66.0.2` | 删除业务服务 `NACOS_REGISTER_IP` 并重建容器；从 Gateway 复测 `/api/<service>/health*`；不要写回 `10.66.0.2` |
 

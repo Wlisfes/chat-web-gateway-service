@@ -1,5 +1,17 @@
 # 部署变更记录
 
+## 2026-09-17：P0 事故，生产 Nginx 禁止用本地 Gateway 换入口
+
+- 影响机器：`chat-home-server`、本机 Nginx、生产登录页 `https://chat.lisfes.cn`。
+- 事故级别：P0。登录验证码跨域失败，控制台 `CORS: No Access-Control-Allow-Origin` + `net::ERR_FAILED 200`。
+- 根因：本机 Nginx 优先 `host.docker.internal:5000`，把整个生产 Gateway 换成本地 `yarn dev`。CORS/鉴权头不再由 Docker Gateway 签发。叠加 Helmet 默认 `CORP=same-origin`。
+- 不要误判：本地业务服务以更高 `NACOS_REGISTER_WEIGHT` 注册、Gateway 按权重转发到本地，这是正常联调，不是这次事故。
+- 错误处置：先改 Nacos CORS 白名单；用 Nginx 换入口来做本地优先；把本地高权重转发也当成故障一并禁掉。
+- 正确处置：生产 Nginx 只反代 Docker Gateway 并覆盖 `CORP=cross-origin`；Gateway `helmet` 显式 `cross-origin`。本地接流量用 Nacos 权重 + Gateway 可达的 `NACOS_REGISTER_IP`。
+- 验证命令：`curl -sI -H "Origin: https://chat.lisfes.cn" https://chat-web.lisfes.cn/api/auth/codex/write` 必须同时有 ACAO、ACAC 和 `CORP=cross-origin`。
+- 回滚方法：禁止回滚到 `host.docker.internal:5000` 优先的生产入口。完整事故见 `deploy/RUNBOOK.md`。
+
+
 ## 2026-09-17：P0 事故，同机业务服务禁止注册 WireGuard 地址
 
 - 影响机器：`chat-home-server`。
