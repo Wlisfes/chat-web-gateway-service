@@ -196,15 +196,23 @@ jobs:
                           const response = await fetch(`http://127.0.0.1:5000${route.path}`, { signal: AbortSignal.timeout(3000) })
                           const body = await response.json()
                           if (route.validate(body)) return
-                          lastError = new Error(`${route.path} returned an unexpected response`)
+                          lastError = new Error(`${route.serviceName} ${route.path} returned an unexpected response`)
                         } catch (error) {
                           lastError = error
                         }
                         await delay(5000)
                       }
-                      throw lastError || new Error(`${route.path} did not become ready`)
+                      const reason = lastError instanceof Error ? lastError.message : String(lastError || `${route.path} did not become ready`)
+                      throw new Error(`${route.serviceName} ${route.path}: ${reason}`)
                     }
-                    Promise.all(routes.map(waitForRoute)).catch(error => { console.error(error.message); process.exit(1) })'
+                    const failures = []
+                    await Promise.all(routes.map(route => waitForRoute(route).catch(error => {
+                      failures.push(error instanceof Error ? error.message : String(error))
+                    })))
+                    if (failures.length) {
+                      console.error(failures.join("\n"))
+                      process.exit(1)
+                    }'
 
             - name: Log out from GitHub Container Registry
               if: always()
