@@ -1,6 +1,6 @@
 {
     "name": "chat-web-gateway-service",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Chat Web 微服务统一 API 网关",
     "author": "",
     "private": true,
