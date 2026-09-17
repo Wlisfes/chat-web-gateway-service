@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-17：网关按业务码记录错误日志
+
+- 影响机器：chat-home-server。
+- 关联版本：Gateway v1.0.1；@wlisfes/chat-web-base-schema@1.6.33。
+- 变更内容：转发结果按业务码 code !== 200 记 ERROR，不再把 HTTP 200 包装的业务失败记成 INFO；无可用实例或初始化失败时写入 x-business-code: 503。升级共享包到 1.6.33。
+- 机器侧操作：更新 Gateway 镜像。
+- 验证命令：yarn test:full；请求业务码非 200 的接口后，Dozzle 中 Gateway 转发日志应为 ERROR。
+- 回滚方法：回退 Gateway 镜像到上一完整 Git SHA。
+
 ## 2026-09-17：Gateway 部署验收被 CRM 不可达实例拖死
 
 - 影响机器：`chat-home-server`。

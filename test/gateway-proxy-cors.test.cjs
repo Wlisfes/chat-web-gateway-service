@@ -6,7 +6,8 @@ const { Logger } = require('@nestjs/common')
 const {
     GatewayProxyService,
     isRoutableNacosInstance,
-    removeDownstreamCorsHeaders
+    removeDownstreamCorsHeaders,
+    resolveGatewayBusinessStatusCode
 } = require('../dist/modules/gateway/gateway-proxy.service')
 const { shouldLogGatewayRequestPath } = require('../dist/modules/gateway/gateway-request-logging.middleware')
 
@@ -234,6 +235,7 @@ test('Nacos 实例全部下线时网关不走后备地址并返回 503', async (
     try {
         const response = await fetch(gatewayUrl + '/api/auth/codex/write?inverse=0')
         assert.equal(response.status, 200)
+        assert.equal(response.headers.get('x-business-code'), '503')
         const body = await response.json()
         assert.equal(body.data, null)
         assert.equal(body.code, 503)
@@ -286,6 +288,62 @@ test('多个实例仅部分在线时网关继续转发到服务发现结果', as
         assert.equal(body.ok, true)
         assert.equal(received, '/codex/write')
     } finally {
+        await Promise.all([close(gatewayServer), close(downstreamServer)])
+    }
+})
+
+test('网关按业务码而不是 HTTP status 判定转发结果', () => {
+    assert.equal(resolveGatewayBusinessStatusCode({ 'x-business-code': '500' }, 200), 500)
+    assert.equal(resolveGatewayBusinessStatusCode({}, 200, '{"data":null,"code":500,"message":"服务器内部错误"}'), 500)
+    assert.equal(resolveGatewayBusinessStatusCode({}, 200, '{"data":null,"code":200,"message":"success"}'), 200)
+    assert.equal(resolveGatewayBusinessStatusCode({}, 502), 502)
+})
+
+test('网关转发 HTTP 200 但业务码非 200 时记录 ERROR', async () => {
+    const route = {
+        id: 'auth',
+        prefix: '/api/auth',
+        serviceName: 'chat-web-auth-service',
+        fallbackUrl: 'http://127.0.0.1:5050',
+        enabled: true,
+        stripPrefix: true
+    }
+    const downstreamApplication = express()
+    downstreamApplication.use((_request, response) => {
+        response.status(200).json({ data: null, code: 500, message: '服务器内部错误' })
+    })
+    const downstreamServer = await listen(downstreamApplication)
+    const targetUrl = 'http://127.0.0.1:' + downstreamServer.address().port
+    const gatewayService = new GatewayProxyService(
+        {
+            getProxyTimeout: () => 500,
+            getGatewayRoutes: () => [route]
+        },
+        { resolveService: async () => targetUrl }
+    )
+    const gatewayApplication = express()
+    gatewayService.mount(gatewayApplication)
+    gatewayService.initialize()
+    const gatewayServer = await listen(gatewayApplication)
+    const gatewayUrl = 'http://127.0.0.1:' + gatewayServer.address().port
+    const originalLog = Logger.prototype.log
+    const originalError = Logger.prototype.error
+    const logs = []
+    const errors = []
+
+    try {
+        Logger.prototype.log = message => logs.push(message)
+        Logger.prototype.error = message => errors.push(message)
+        const body = await fetch(gatewayUrl + '/api/auth/token/login', { method: 'POST' }).then(response => response.json())
+        assert.equal(body.code, 500)
+        const proxyErrors = errors.filter(message => typeof message === 'string' && message.includes('chat-web-auth-service'))
+        const proxyLogs = logs.filter(message => typeof message === 'string' && message.includes('chat-web-auth-service'))
+        assert.equal(proxyLogs.length, 0)
+        assert.equal(proxyErrors.length, 1)
+        assert.match(proxyErrors[0], /POST \/api\/auth\/token\/login -> chat-web-auth-service 500 /)
+    } finally {
+        Logger.prototype.log = originalLog
+        Logger.prototype.error = originalError
         await Promise.all([close(gatewayServer), close(downstreamServer)])
     }
 })
