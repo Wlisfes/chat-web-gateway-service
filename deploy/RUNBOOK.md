@@ -37,12 +37,12 @@ Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 
 ## P0 事故：同机服务注册 WireGuard 地址导致业务 503（2026-09-17）
 
-这是跨服务事故的主记录。Skyline、Finance、Auth、Account 与同机 Gateway 都适用。CRM 不在本次范围内，不要改 CRM。
+这是跨服务事故的主记录。Skyline、Finance、Auth、Account、CRM 与同机 Gateway 都适用。
 
 ### 影响
 
-- 级别：P0。生产 Gateway 按 Nacos 实例转发 Skyline/Finance/Auth/Account 时返回业务 503 或 `ECONNREFUSED`。
-- 直接症状：容器自身 `/health*` 正常，但从 Gateway 访问 `/api/skyline/health/live`、`/api/finance/health`、`/api/auth/health`、`/api/account/health` 失败。
+- 级别：P0。生产 Gateway 按 Nacos 实例转发 Skyline/Finance/Auth/Account/CRM 时返回业务 503、`ECONNREFUSED` 或探活超时。
+- 直接症状：容器自身 `/health*` 正常，但从 Gateway 访问 `/api/skyline/health/live`、`/api/finance/health`、`/api/auth/health`、`/api/account/health`、`/api/crm/health` 失败。
 - 公网入口 `https://chat.lisfes.cn/api/**` 同步失败。
 
 ### 时间线
@@ -52,6 +52,7 @@ Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 3. Skyline `5040` 曾被 Windows `CDPSvc` 占用 `0.0.0.0:5040`，宿主机端口发布失败，问题被进一步掩盖。
 4. 同机 Gateway 按 Nacos 注册地址访问 `10.66.0.2:<port>`，连接失败，业务 503。
 5. 2026-09-17：清除 Skyline/Finance/Auth/Account 的 `NACOS_REGISTER_IP`，改为注册容器网卡 IP。公网继续走本机 Nginx `80/443` → Gateway（Docker DNS 后备）。不要把 `10.66.0.2` 写回这四个服务。
+6. 同日稍后：Gateway 部署验收仍失败。公网实测仅 `/api/crm/health` 超时；CRM 仍强制写入并可能从 Gateway `.env` 继承 `NACOS_REGISTER_IP=10.66.0.2`。Nacos 心跳仍在，验收脚本因此空等约 18 分钟。随后 CRM 按同一规则停止强制注册 WireGuard 地址。
 
 ### 根因
 
@@ -67,14 +68,14 @@ Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 
 - 看到跨主机需求就强制 `NACOS_REGISTER_IP=10.66.0.2`。
 - 用宿主机 `Test-NetConnection 10.66.0.2 -Port 5040` 或本机 `127.0.0.1:5040` 200 当作 Gateway 可达证据。
-- 把 `10.66.0.2` 写回 Skyline/Finance/Auth/Account 生产 `.env`。
+- 把 `10.66.0.2` 写回 Skyline/Finance/Auth/Account/CRM 生产 `.env`。
 - 为了让 `10.66.0.2:5040` 通而禁用 `CDPSvc`；保持 `Stopped` + `Manual` 即可，不要禁用服务。
-- 修改 CRM 或把 Gateway 生产 `.env` 的 `NACOS_REGISTER_IP` 清掉当作修复手段。Gateway 入口走 Nginx，不靠业务端口映射到 WG。
+- 把 Gateway 生产 `.env` 的 `NACOS_REGISTER_IP` 清掉当作修复手段。Gateway 入口走 Nginx，不靠业务端口映射到 WG。
 
 ### 正确处置
 
 1. 同机业务服务 **不要** 设置 `NACOS_REGISTER_IP`，让进程探测容器网卡 IP 并注册。
-2. 公网入口只走本机 Nginx `80/443`，再转到 Gateway `5000`；不要让 Gateway 去打 `10.66.0.2:5010/5030/5040/5050`。
+2. 公网入口只走本机 Nginx `80/443`，再转到 Gateway `5000`；不要让 Gateway 去打 `10.66.0.2:5010/5020/5030/5040/5050`。
 3. 部署后必须在 **Gateway 容器内** 探测 `/api/<service>/health*`，HTTP 200 且业务 `status=UP` 才算成功。HTTP 200 + 业务 503 视为失败。
 4. 若确需跨主机注册，必须先从将要调用它的 Gateway 证实该 `IP:port` 可达，再写入 `NACOS_REGISTER_IP`；`deploy.sh` 已按此探测，失败则中止切换。
 
@@ -83,25 +84,28 @@ Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控�
 在 WSL `Ubuntu-24.04` 执行；不要打印 `.env` 值。
 
 ```bash
-docker ps --filter name=chat-web-skyline-service --filter name=chat-web-finance-service --filter name=chat-web-auth-service --filter name=chat-web-account-service --filter name=chat-web-gateway-service
+docker ps --filter name=chat-web-skyline-service --filter name=chat-web-finance-service --filter name=chat-web-auth-service --filter name=chat-web-account-service --filter name=chat-web-crm-service --filter name=chat-web-gateway-service
 docker exec chat-web-skyline-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-finance-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-auth-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-account-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
+docker exec chat-web-crm-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/skyline/health/live').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/finance/health').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/auth/health').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/account/health').then(r=>r.text()).then(console.log)"
+docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/crm/health').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/auth/codex/write').then(r=>console.log(r.status))"
 curl -fsS https://chat.lisfes.cn/api/skyline/health/live
 curl -fsS https://chat.lisfes.cn/api/finance/health
 curl -fsS https://chat.lisfes.cn/api/auth/health
 curl -fsS https://chat.lisfes.cn/api/account/health
+curl -fsS https://chat.lisfes.cn/api/crm/health
 curl -fsS -o /dev/null -w '%{http_code}\n' https://chat.lisfes.cn/api/auth/codex/write
 curl -fsS http://127.0.0.1:5040/health/live
 ```
 
-预期：四个业务容器 `NACOS_REGISTER_IP` 为空；Gateway 与公网健康检查均为 HTTP 200 且业务 UP；验证码 `codex/write` 为 200。`127.0.0.1:5040` 可以为 200。`10.66.0.2:5040` / `10.66.0.2:5030` 超时 **不** 表示故障，也不要据此把 WireGuard 地址写回 Nacos。
+预期：五个业务容器 `NACOS_REGISTER_IP` 为空；Gateway 与公网健康检查均为 HTTP 200 且业务 UP；验证码 `codex/write` 为 200。`127.0.0.1:5040` 可以为 200。`10.66.0.2:5040` / `10.66.0.2:5030` / `10.66.0.2:5020` 超时 **不** 表示故障，也不要据此把 WireGuard 地址写回 Nacos。
 
 ### 何时写 `NACOS_REGISTER_IP`
 
@@ -113,7 +117,7 @@ curl -fsS http://127.0.0.1:5040/health/live
 | 本机 `yarn dev` / `nest --watch` 业务进程，要让 **同机 Docker Gateway** 按高权重转发过来 | **要写** | 写 Gateway **容器内**能访问的宿主机地址。当前 Gateway 在 `172.20.0.0/16`，宿主机桥接网关是 `172.20.0.1`。不要写 `127.0.0.1`，也不要写 `10.66.0.2` |
 | 本机进程要被 **另一台机器** 经 WireGuard 发现 | **要写，且先探测** | 才考虑 `10.66.0.2`。必须先从那台机器上的 Gateway 证实 `IP:port` 可达，失败就不要登记 |
 | Gateway 自己 | 可保留跨主机发现地址 | 公网入口走 Nginx `80/443`，不要为了修业务 503 去改或清空它 |
-| CRM | 不在本次范围 | 不要借这次问题改 CRM |
+| CRM | **不写** | 与另外四个业务服务相同：注册容器网卡 IP。bootstrap 不得从 Gateway `.env` 继承该项 |
 
 同机 Docker Gateway 打 `10.66.0.2:5010/5030/5040/5050` 会超时，这是 Docker Desktop 不把端口映射到 WireGuard 网卡，**不**表示本地高权重联调本身是错的。
 

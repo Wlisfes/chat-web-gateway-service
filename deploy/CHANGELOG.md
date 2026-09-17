@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-17：Gateway 部署验收被 CRM 不可达实例拖死
+
+- 影响机器：`chat-home-server`。
+- 事故级别：P0。Gateway 镜像已切换成功，但 `Verify service routes` 因 `/api/crm/health` 超时失败。Nacos 仍把 CRM 标为健康，验收脚本会一直打这条路由约 18 分钟。
+- 根因：CRM 仍强制注册 WireGuard `10.66.0.2:5020`，同机 Gateway 连不上。Account/Auth/Finance/Skyline 已改为注册容器网卡 IP。
+- 正确处置：CRM 停止默认/继承 `NACOS_REGISTER_IP`，生产删除该项并重建容器。Gateway 验收失败时打印服务名和路径。
+- 验证命令：Gateway 容器内及公网 `GET /api/crm/health` 返回业务 `code=200` 后，重跑 Gateway 部署。
+- 回滚方法：禁止把 CRM 生产注册地址写回 `10.66.0.2`。完整事故见 `deploy/RUNBOOK.md`。
+
 ## 2026-09-17：P0 事故，生产 Nginx 禁止用本地 Gateway 换入口
 
 - 影响机器：`chat-home-server`、本机 Nginx、生产登录页 `https://chat.lisfes.cn`。
@@ -18,7 +27,7 @@
 - 事故级别：P0。Skyline/Finance/Auth/Account 被强制注册 `10.66.0.2` 后，同机 Gateway 转发业务 503。
 - 根因：Docker Desktop 不把业务端口映射到 WireGuard 网卡；Skyline `5040` 还曾被 `CDPSvc` 占用。同机 Gateway 只能访问容器网卡 IP，不能访问 `10.66.0.2:<port>`。
 - 错误处置：继续把 `NACOS_REGISTER_IP=10.66.0.2` 写进业务服务。
-- 正确处置：四个业务服务删除 `NACOS_REGISTER_IP` 并重建，注册容器网卡 IP。公网仍走本机 Nginx `80/443` → Gateway。不要改 CRM，也不要为修业务 503 去改 Gateway 自己的 `NACOS_REGISTER_IP`。
+- 正确处置：业务服务删除 `NACOS_REGISTER_IP` 并重建，注册容器网卡 IP。公网仍走本机 Nginx `80/443` → Gateway。不要为修业务 503 去改 Gateway 自己的 `NACOS_REGISTER_IP`。CRM 后续按同一规则处理，见本文件 2026-09-17 验收失败条目。
 - 验证命令：Gateway 容器内及公网 `https://chat.lisfes.cn` 检查 `/api/skyline/health/live`、`/api/finance/health`、`/api/auth/health`、`/api/account/health`、`/api/auth/codex/write` 均为 HTTP 200。
 - 回滚方法：禁止回滚到强制业务服务注册 `10.66.0.2` 的部署逻辑。完整事故见 `deploy/RUNBOOK.md`。
 
