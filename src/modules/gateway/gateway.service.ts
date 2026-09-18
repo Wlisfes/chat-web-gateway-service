@@ -1,12 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import { GatewayProxyService } from '@/modules/gateway/gateway-proxy.service'
 import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
-import {
-    DocumentationRedirectResponseDto,
-    GatewayHealthResponseDto,
-    GatewayInfoResponseDto,
-    GatewayLivenessResponseDto
-} from '@/modules/gateway/dto/gateway-response.dto'
+import * as GatewayDto from '@/modules/gateway/dto/gateway-response.dto'
 
 @Injectable()
 export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -40,12 +35,12 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     /**Knife4j 聚合文档重定向信息。*/
-    public async httpBaseGatewayDocumentation(): Promise<DocumentationRedirectResponseDto> {
+    public async httpBaseGatewayDocumentation(): Promise<GatewayDto.DocumentationRedirectResponseDto> {
         return { url: '/doc.html' }
     }
 
     /**网关信息及已配置路由。*/
-    public async httpBaseGatewayInfo(): Promise<GatewayInfoResponseDto> {
+    public async httpBaseGatewayInfo(): Promise<GatewayDto.GatewayInfoResponseDto> {
         return {
             name: 'chat-web-gateway-service',
             description: 'Chat Web 微服务统一 API 网关',
@@ -61,7 +56,7 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     /**网关及服务发现健康状态。*/
-    public async httpBaseGatewayHealth(): Promise<GatewayHealthResponseDto> {
+    public async httpBaseGatewayHealth(): Promise<GatewayDto.GatewayHealthResponseDto> {
         await this.refreshRoutes()
         const discovery = this.nacosService.getStatus()
         return {
@@ -81,7 +76,7 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     /**网关进程存活状态。*/
-    public async httpBaseGatewayLiveness(): Promise<GatewayLivenessResponseDto> {
+    public async httpBaseGatewayLiveness(): Promise<GatewayDto.GatewayLivenessResponseDto> {
         return {
             status: 'UP',
             timestamp: new Date().toISOString()
@@ -89,7 +84,7 @@ export class GatewayService implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     /**网关路由及服务发现就绪状态。*/
-    public async httpBaseGatewayReadiness(): Promise<GatewayHealthResponseDto> {
+    public async httpBaseGatewayReadiness(): Promise<GatewayDto.GatewayHealthResponseDto> {
         return this.httpBaseGatewayHealth()
     }
 }
