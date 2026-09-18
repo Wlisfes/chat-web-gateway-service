@@ -20,7 +20,7 @@
 ## 目录与文件命名
 
 - 通用入口固定为 `src/main.ts` 和 `src/app.module.ts`。
-- 业务或基础设施模块放在 `src/modules/<module-name>/`。
+- 业务模块放在 `src/modules/<module-name>/`。`health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录（`src/health/`、`src/feign/`、`src/database/`），不要放进 `src/modules/`。后续改造其他 NestJS 服务时必须与 Account 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
 - 文件名使用小写 kebab-case，并使用职责后缀：
   - `*.module.ts`
   - `*.controller.ts`
@@ -30,7 +30,7 @@
   - `*.constants.ts`
   - `*.options.ts`
 - 一个模块的接口、常量和配置构造分别放入对应后缀文件，不与实现类混放。
-- 测试文件与被测文件同名并使用 `*.spec.ts`；禁止提交生成目录、依赖目录和真实 `.env`。
+- 自动化测试放在仓库根目录 `test/`，文件名与模块目录一致并使用 `<module>.test.cjs`。禁止引入 Jest 或 `*.spec.ts`。禁止提交生成目录、依赖目录和真实 `.env`。
 
 ## TypeScript 与 NestJS 命名
 
@@ -77,6 +77,51 @@
 - 普通业务入参中可选字段的空值判断统一使用 `class-validator` 的 `isEmpty`、`isNotEmpty`；禁止编写 `input.xxx !== undefined && ...` 或用隐式 truthy/falsy 代替该类入参判空。只有必须区分“字段未传”和“显式传入 null”的三态更新字段可以直接判断 `undefined`，且必须保留该语义说明；实体查询结果、基础设施配置解析、布尔值判断、枚举比较和两个已确认非空值之间的相等性比较不受此限制。
 - DTO 必须放在模块 `dto/` 目录，优先通过 `PickType`、`PartialType`、`IntersectionType` 复用 `chat-web-base-schema` DTO；分页 DTO 继承公共 `PageDto`。字段必须具备 Swagger 示例/说明、必要的类型转换和中文校验消息。
 - Module 按 `imports`、`controllers`、`providers`、`exports` 组织；新增 Utils Service 必须注册到 `providers`。不得改变既有公开路由、权限、响应结构和业务语义来迎合代码格式。
+
+
+## 源码导入、目录与测试落地规则
+
+改造其他 NestJS 服务时必须按本节和上一节执行；基准代码为 `chat-web-account-service` 的 `src/modules/sheet/`、`src/health/`、`src/feign/`、`src/database/` 和 `test/*.test.cjs`。
+
+### 目录分层
+
+- 业务模块只放 `src/modules/<module-name>/`，每个模块包含：`<name>.module.ts`、`<name>.controller.ts`、`<name>.service.ts`、按需 `<name>.utils.service.ts`、`dto/<name>.dto.ts`。
+- `health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录：`src/health/`、`src/feign/`、`src/database/`。不要放进 `src/modules/`。后续改造其他服务必须与 Account 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
+- 禁止保留一次性迁移脚本、菜单种子和 `repair-*`。部署需要的 CLI 仅允许 `src/cli/nacos-auth.ts`、`src/cli/isolate-service-databases.ts`、`src/cli/apply-schema.ts`。
+- 隔离脚本只读取本服务 Nacos Data ID、只连接本服务数据库；禁止读取或连接其他服务的 Nacos Data ID。
+
+### 导入顺序与来源
+
+每个文件顶部导入按以下顺序。禁止 `from 'typeorm'`；禁止从 `@nestjs/typeorm` 导入 `InjectRepository`、`Repository`、`EntityManager`（`TypeOrmModule` 除外）。
+
+1. `@nestjs/common`、`@nestjs/config`、`@nestjs/swagger` 等 Nest 官方包。
+2. `@wlisfes/chat-web-base-schema/decorator`
+3. `@wlisfes/chat-web-base-schema/auth`
+4. `@wlisfes/chat-web-base-schema/database`
+5. `@wlisfes/chat-web-base-schema/utils`
+6. 其他 schema 子路径（`feign`、`nacos`、`filters`、`interceptor` 等）。
+7. 本仓库 `@/modules/...`、`@/health/...`、`@/feign/...`、`@/database/...`。
+8. `import * as Schema from '@wlisfes/chat-web-base-schema'`。Service 和实体较多的 Utils 用此归组引用实体。
+9. `import * as <Module>Dto from '@/modules/<module>/dto/<module>.dto'`。
+
+补充约定：
+
+- Controller：共享响应实体 DTO 可具名导入 `TbXxxDto`；本模块请求与响应 DTO 一律 `import * as XxxDto`。
+- Service：`InjectRepository`、`Repository`、`DataBaseService`、`Brackets`、`In`、`EntityManager` 从 `@wlisfes/chat-web-base-schema/database` 导入；`isEmpty` / `isNotEmpty` 从 `@wlisfes/chat-web-base-schema/utils` 导入。
+- DTO 文件：`@nestjs/swagger` → `class-transformer` / `class-validator` → schema `decorator` / `utils` → `import * as Schema`，字段用 `PickType(Schema.TbXxxDto, ...)`。
+- Module：`TypeOrmModule` 从 `@nestjs/typeorm` 导入；有数据库的服务使用 `TypeOrmModule.forFeature(本服务 ENTITIES 常量)`，不要在业务 Module 里逐个罗列实体。
+
+### 测试文件
+
+- 使用 Node 内置测试运行器。文件放在 `test/<module>.test.cjs`，名称与模块目录一致。
+- `yarn test` 为 `yarn build && node --test test/*.test.cjs`（或仓库现有等价脚本）。测试引用 `dist/` 编译产物。
+- 禁止引入 Jest，禁止 `*.spec.ts`，禁止与模块无关的测试文件名。同一模块的用例合并到一个测试文件。
+
+### 数据范围资源编码
+
+- 功能权限码与数据范围资源编码分离。权限码用于 `@RequirePermissions`。
+- 数据范围 `resourceCode` 格式固定为 `chat:{服务}:{资源}`，全小写，例如 `chat:account:user`、`chat:crm:consumer`、`chat:finance:voucher`。`*` 表示默认规则。
+- 查询数据范围必须调用 `AuthorizationService.resolveDataScope(uid, resourceCode)`，禁止把数据范围挂到 `AuthPrincipal`。
 
 ## Git 提交规范
 

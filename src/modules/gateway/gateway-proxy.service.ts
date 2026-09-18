@@ -3,7 +3,12 @@ import type { Socket } from 'node:net'
 import { Injectable, Logger, Optional } from '@nestjs/common'
 import { GATEWAY_PRINCIPAL_HEADER } from '@wlisfes/chat-web-base-schema/auth'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { BUSINESS_CODE_HEADER, isBusinessSuccessStatus, parseBusinessStatusCode, parseJsonBusinessCode } from '@wlisfes/chat-web-base-schema/logging'
+import {
+    BUSINESS_CODE_HEADER,
+    isBusinessSuccessStatus,
+    parseBusinessStatusCode,
+    parseJsonBusinessCode
+} from '@wlisfes/chat-web-base-schema/logging'
 import { createApiResponse } from '@wlisfes/chat-web-base-schema/response'
 import { resolveRequestId } from '@wlisfes/chat-web-base-schema/request-context'
 import type { Express, Request, RequestHandler, Response } from 'express'

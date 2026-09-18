@@ -347,3 +347,119 @@ test('网关转发 HTTP 200 但业务码非 200 时记录 ERROR', async () => {
         await Promise.all([close(gatewayServer), close(downstreamServer)])
     }
 })
+
+const { createGatewayRequestLoggingMiddleware } = require('../dist/modules/gateway/gateway-request-logging.middleware')
+
+test('网关入口静默探活与 Swagger JSON，同时保留业务请求日志', () => {
+    const messages = []
+    const originalLog = Logger.prototype.log
+    Logger.prototype.log = message => messages.push(message)
+
+    try {
+        const middleware = createGatewayRequestLoggingMiddleware('chat-web-gateway-service')
+        const silentPaths = [
+            '/health',
+            '/health/live',
+            '/health/ready',
+            '/api/swagger-json',
+            '/api/account/health/live',
+            '/api/account/api/swagger-json',
+            '/feign/account/api/swagger-json'
+        ]
+
+        for (const path of silentPaths) {
+            const { request, response } = createHttpContext(path)
+            middleware(request, response, () => undefined)
+            assert.equal(response.finish, undefined, `${path} 不应注册完成日志`)
+        }
+
+        const { request, response } = createHttpContext('/api/account/sheet/column')
+        middleware(request, response, () => undefined)
+        assert.equal(typeof response.finish, 'function')
+        response.finish()
+    } finally {
+        Logger.prototype.log = originalLog
+    }
+
+    assert.equal(messages.length, 1)
+    assert.equal(messages[0].url, '/api/account/sheet/column')
+})
+
+function createHttpContext(path) {
+    return {
+        request: {
+            headers: {},
+            method: 'POST',
+            originalUrl: path,
+            path,
+            query: {},
+            params: {},
+            body: {},
+            ip: '127.0.0.1',
+            socket: {}
+        },
+        response: {
+            statusCode: 200,
+            setHeader() {},
+            once(_name, listener) {
+                this.finish = listener
+            }
+        }
+    }
+}
+
+const { createKnife4jServices } = require('../dist/modules/gateway/knife4j-services')
+
+test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
+    const routes = [
+        route('account', '/api/account', 'chat-web-account-service'),
+        route('feign-account', '/feign/account', 'chat-web-account-service'),
+        route('account-alias', '/api/account-alias', 'chat-web-account-service'),
+        route('finance', '/api/finance', 'chat-web-finance-service'),
+        route('feign-finance', '/feign/finance', 'chat-web-finance-service'),
+        route('auth-legacy', '/api/account/auth', 'chat-web-auth-service'),
+        route('auth', '/api/auth', 'chat-web-auth-service'),
+        { ...route('disabled', '/api/disabled', 'chat-web-disabled-service'), enabled: false }
+    ]
+
+    assert.deepEqual(createKnife4jServices(routes), [
+        {
+            name: '网关服务',
+            url: '/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/swagger'
+        },
+        {
+            name: 'chat-web-account-service',
+            url: '/api/account/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/account/api/swagger',
+            servicePath: '/api/account'
+        },
+        {
+            name: 'chat-web-finance-service',
+            url: '/api/finance/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/finance/api/swagger',
+            servicePath: '/api/finance'
+        },
+        {
+            name: 'chat-web-auth-service',
+            url: '/api/auth/api/swagger-json',
+            swaggerVersion: '3.0.0',
+            location: '/api/auth/api/swagger',
+            servicePath: '/api/auth'
+        }
+    ])
+})
+
+function route(id, prefix, serviceName) {
+    return {
+        id,
+        prefix,
+        serviceName,
+        fallbackUrl: 'http://127.0.0.1:5001',
+        enabled: true,
+        stripPrefix: prefix.startsWith('/api/')
+    }
+}
