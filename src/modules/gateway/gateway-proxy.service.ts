@@ -63,7 +63,18 @@ export function removeDownstreamCorsHeaders(proxyResponse: Pick<IncomingMessage,
 
 const MAX_GATEWAY_BUSINESS_BODY_PEEK = 4096
 
-/** 优先读取业务码响应头，HTTP 非 200 次之，最后回退响应体 code。 */
+function isHttpSuccessStatus(status: number): boolean {
+    return status >= 200 && status < 300
+}
+
+/** Nest POST 默认 HTTP 201，对外和日志统一改成 200。 */
+export function normalizeGatewayCreatedResponse(proxyResponse: IncomingMessage): void {
+    if (proxyResponse.statusCode !== 201) return
+    proxyResponse.statusCode = 200
+    proxyResponse.statusMessage = 'OK'
+}
+
+/** 优先读取业务码响应头；HTTP 4xx/5xx 直接作为失败码；2xx 再读响应体 code。Nest POST 默认 201 不是业务失败。 */
 export function resolveGatewayBusinessStatusCode(
     headers: IncomingMessage['headers'] | Record<string, unknown>,
     httpStatus = 200,
@@ -71,7 +82,7 @@ export function resolveGatewayBusinessStatusCode(
 ): number {
     const headerCode = parseBusinessStatusCode(headers[BUSINESS_CODE_HEADER])
     if (headerCode !== undefined) return headerCode
-    if (httpStatus !== 200) return httpStatus
+    if (!isHttpSuccessStatus(httpStatus)) return httpStatus
     return parseJsonBusinessCode(bodyText ?? '') ?? httpStatus
 }
 
@@ -82,7 +93,7 @@ function observeProxyBusinessStatusCode(proxyResponse: IncomingMessage, onCode: 
         onCode(headerCode)
         return
     }
-    if (httpStatus !== 200) {
+    if (!isHttpSuccessStatus(httpStatus)) {
         proxyResponse.headers[BUSINESS_CODE_HEADER] = String(httpStatus)
         onCode(httpStatus)
         return
@@ -214,12 +225,13 @@ export class GatewayProxyService {
                 },
                 proxyRes: (proxyResponse, request) => {
                     removeDownstreamCorsHeaders(proxyResponse)
+                    normalizeGatewayCreatedResponse(proxyResponse)
                     if (!shouldLogGatewayRequestPath(request.originalUrl || request.url)) return
                     const route = this.getMatchedRoute(request)
                     const duration = Date.now() - (this.startedAt.get(request) ?? Date.now())
                     observeProxyBusinessStatusCode(proxyResponse, statusCode => {
                         const message = `${request.method} ${request.originalUrl} -> ${route.serviceName} ${statusCode} ${duration}ms`
-                        if (isBusinessSuccessStatus(statusCode)) this.logger.log(message)
+                        if (isBusinessSuccessStatus(statusCode) || isHttpSuccessStatus(statusCode)) this.logger.log(message)
                         else this.logger.error(message)
                     })
                 },

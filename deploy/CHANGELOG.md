@@ -1,5 +1,12 @@
 # 部署变更记录
 
+## 2026-09-18：Nest POST 默认 HTTP 201 对外改成 200
+
+- 影响机器：`chat-home-server` Gateway。
+- 变更内容：下游 Nest POST 默认 201 时，网关转发给客户端改成 HTTP 200，日志也记 200 INFO。HTTP 4xx/5xx 仍当失败；2xx 继续读响应体业务码，业务码非 200 仍记 ERROR。
+- 验证命令：`yarn test`；POST `/api/finance/currency/exchange/column` 成功时客户端和 Dozzle 都应是 200 INFO，不应再出现 201 ERROR。
+- 回滚方法：回退本次网关提交。
+
 ## 2026-09-18：WireGuard 双机防火墙禁止互抢
 
 - 影响机器：`chat-home-server`（`10.66.0.2`）、另一台客户端 `10.66.0.3`、云端 Nginx `10.66.0.1`、公网 `chat-web-redis.lisfes.cn:6379`。

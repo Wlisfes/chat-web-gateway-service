@@ -7,7 +7,8 @@ const {
     GatewayProxyService,
     isRoutableNacosInstance,
     removeDownstreamCorsHeaders,
-    resolveGatewayBusinessStatusCode
+    resolveGatewayBusinessStatusCode,
+    normalizeGatewayCreatedResponse
 } = require('../dist/modules/gateway/gateway-proxy.service')
 const { shouldLogGatewayRequestPath } = require('../dist/modules/gateway/gateway-request-logging.middleware')
 
@@ -296,7 +297,64 @@ test('网关按业务码而不是 HTTP status 判定转发结果', () => {
     assert.equal(resolveGatewayBusinessStatusCode({ 'x-business-code': '500' }, 200), 500)
     assert.equal(resolveGatewayBusinessStatusCode({}, 200, '{"data":null,"code":500,"message":"服务器内部错误"}'), 500)
     assert.equal(resolveGatewayBusinessStatusCode({}, 200, '{"data":null,"code":200,"message":"success"}'), 200)
+    assert.equal(resolveGatewayBusinessStatusCode({}, 201, '{"data":null,"code":200,"message":"success"}'), 200)
+    assert.equal(resolveGatewayBusinessStatusCode({}, 201), 201)
     assert.equal(resolveGatewayBusinessStatusCode({}, 502), 502)
+    const created = { statusCode: 201, statusMessage: 'Created' }
+    normalizeGatewayCreatedResponse(created)
+    assert.equal(created.statusCode, 200)
+    assert.equal(created.statusMessage, 'OK')
+})
+
+test('网关转发 Nest POST 默认 HTTP 201 且业务码 200 时记录 INFO', async () => {
+    const route = {
+        id: 'finance',
+        prefix: '/api/finance',
+        serviceName: 'chat-web-finance-service',
+        fallbackUrl: 'http://127.0.0.1:5030',
+        enabled: true,
+        stripPrefix: true
+    }
+    const downstreamApplication = express()
+    downstreamApplication.use((_request, response) => {
+        response.status(201).json({ data: { list: [] }, code: 200, message: 'success' })
+    })
+    const downstreamServer = await listen(downstreamApplication)
+    const targetUrl = 'http://127.0.0.1:' + downstreamServer.address().port
+    const gatewayService = new GatewayProxyService(
+        {
+            getProxyTimeout: () => 500,
+            getGatewayRoutes: () => [route]
+        },
+        { resolveService: async () => targetUrl }
+    )
+    const gatewayApplication = express()
+    gatewayService.mount(gatewayApplication)
+    gatewayService.initialize()
+    const gatewayServer = await listen(gatewayApplication)
+    const gatewayUrl = 'http://127.0.0.1:' + gatewayServer.address().port
+    const originalLog = Logger.prototype.log
+    const originalError = Logger.prototype.error
+    const logs = []
+    const errors = []
+
+    try {
+        Logger.prototype.log = message => logs.push(message)
+        Logger.prototype.error = message => errors.push(message)
+        const response = await fetch(gatewayUrl + '/api/finance/currency/exchange/column', { method: 'POST' })
+        assert.equal(response.status, 200)
+        const body = await response.json()
+        assert.equal(body.code, 200)
+        const proxyErrors = errors.filter(message => typeof message === 'string' && message.includes('chat-web-finance-service'))
+        const proxyLogs = logs.filter(message => typeof message === 'string' && message.includes('chat-web-finance-service'))
+        assert.equal(proxyErrors.length, 0)
+        assert.equal(proxyLogs.length, 1)
+        assert.match(proxyLogs[0], /POST \/api\/finance\/currency\/exchange\/column -> chat-web-finance-service 200 /)
+    } finally {
+        Logger.prototype.log = originalLog
+        Logger.prototype.error = originalError
+        await Promise.all([close(gatewayServer), close(downstreamServer)])
+    }
 })
 
 test('网关转发 HTTP 200 但业务码非 200 时记录 ERROR', async () => {
