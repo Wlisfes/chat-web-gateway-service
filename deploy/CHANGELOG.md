@@ -1,5 +1,25 @@
 # 部署变更记录
 
+## 2026-09-18：WireGuard 双机防火墙禁止互抢
+
+- 影响机器：`chat-home-server`（`10.66.0.2`）、另一台客户端 `10.66.0.3`、云端 Nginx `10.66.0.1`、公网 `chat-web-redis.lisfes.cn:6379`。
+- 事故级别：P0 预防。此前把防火墙 Remote 写成单个对端后，会出现“改这边那边断、改那边这边断”。
+- 根因：Windows 入站规则 RemoteAddress 被收成 `10.66.0.1` 或 `10.66.0.3` 之一；遗留规则 `Chat Web Rabbit Kafka via WireGuard` 也只放行云端。
+- 正确处置：主规则 Remote 固定 `10.66.0.0/24`；清理单 IP 遗留规则；云端上游永远 `10.66.0.2`；计划任务只修监听不改防火墙。规约见 `AGENTS.md` 与 `deploy/RUNBOOK.md`。
+- 验证命令：`Get-NetFirewallRule -DisplayName 'Chat Web infrastructure via WireGuard' | Get-NetFirewallAddressFilter` 的 Remote 为 `10.66.0.0/24`；遗留单 IP 规则不存在；公网 Redis `PING` 返回 `-NOAUTH` 或 `PONG`。
+- 回滚方法：禁止把 Remote 再改回单个对端 IP。
+
+
+## 2026-09-18：P0 事故，Redis 公网入口 portproxy 监听丢失
+
+- 影响机器：`chat-home-server`、公网 `chat-web-redis.lisfes.cn:6379`，以及同一条 WireGuard 代理上的 RabbitMQ/Kafka。
+- 事故级别：P0。开发客户端连公网 Redis 失败；Docker 内 Auth/业务 Redis 正常。
+- 根因：`netsh portproxy` 规则还在，但 Docker Desktop / WireGuard 重启后 `10.66.0.2:18080`–`18083` 不再 `LISTENING`。云端 Nginx 接受 TCP 后上游拒绝，客户端看到 RST 或超时。
+- 正确处置：新增 `repair-wireguard-portproxy.ps1`；`allow-wireguard-infrastructure.ps1` 会把它安装到 `C:\ProgramData\chat-web\` 并注册 SYSTEM 任务 `ChatWeb-WireGuard-PortProxy`（开机 + 每 5 分钟）。禁止把 Redis 映射回 WG 网卡。
+- 验证命令：`netstat -ano | findstr LISTENING | findstr 18080`；对本机 `127.0.0.1:16379` 和 `chat-web-redis.lisfes.cn:6379` 发送 Redis `PING`，应返回 `-NOAUTH` 或 `PONG`。
+- 回滚方法：删除计划任务 `ChatWeb-WireGuard-PortProxy`，不要删除 Redis 数据卷。完整事故见 `deploy/RUNBOOK.md`。
+
+
 ## 2026-09-17：网关按业务码记录错误日志
 
 - 影响机器：chat-home-server。

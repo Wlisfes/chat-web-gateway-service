@@ -35,6 +35,92 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 
 Namespace ID 是本机 Nacos 的运行参数。恢复机器时先在 Nacos 控制台确认 `chat-web-service` 的实际 ID，再填写服务器 `.env`，不要根据历史机器配置猜测。
 
+## WireGuard 双机规约（10.66.0.2 / 10.66.0.3 禁止互抢）
+
+`10.66.0.3` 是另一台客户端机器，不是基础设施宿主。改这边防火墙/上游时，禁止把对端写成单个 IP，否则会出现“改这边那边断、改那边这边断”。
+
+| IP | 角色 | 允许做什么 | 禁止做什么 |
+| --- | --- | --- | --- |
+| `10.66.0.1` | 云端 Nginx / WireGuard 网关 | 作为公网 Redis/Rabbit/Kafka 的来源 IP | 不要删掉它的放行 |
+| `10.66.0.2` | Home 基础设施宿主 | Redis/Rabbit/Kafka 只部署在这里；portproxy 只绑这台 | 不要把云端上游改到别的机器 |
+| `10.66.0.3` | 另一台客户端 | 直连 `10.66.0.2:18080-18083` 使用基础设施 | 不要把 Redis/Rabbit/Kafka 迁到这台，也不要让云端上游指向它 |
+
+硬性规则：
+
+1. 云端 Nginx stream 上游永远是 `10.66.0.2:18080`（Redis）、`18081-18083`（Rabbit/Kafka）。禁止改成 `10.66.0.3`。
+2. 本机防火墙 `Chat Web infrastructure via WireGuard` 的 `RemoteAddress` 必须是 `10.66.0.0/24`，同时覆盖 `.1` 和 `.3`。禁止改成单个对端 IP。
+3. 改规则只许并集不许替换：要放行新机器就加进网段，不要把原来的 `.1` 或 `.3` 删掉。
+4. 遗留单 IP 规则必须删掉，尤其是 `Chat Web Rabbit Kafka via WireGuard`。
+5. WireGuard **服务端**每个 peer 的 `AllowedIPs` 必须是该 peer 的 `/32`。禁止把 `10.66.0.0/24` 挂在某一个 peer 上，否则会吞掉另一台。
+6. WireGuard **客户端** `AllowedIPs` 用 `10.66.0.0/24`，禁止 `0.0.0.0/0`。
+7. 阿里云安全组源 IP 只加不删。
+8. 计划任务 `ChatWeb-WireGuard-PortProxy` 只修 `18080-18083` 监听，禁止改防火墙 `RemoteAddress`。
+9. 验收必须两边都测才算过：公网 `chat-web-redis.lisfes.cn:6379`（源 IP `.1`）发 Redis `PING` 返回 `-NOAUTH`/`PONG`；`10.66.0.3` 直连 `10.66.0.2:18080` 也要通。只测一边不算过。`.3` 暂时离线时，仍按这条规约改规则，禁止为了“修 .3”去改云端上游。
+
+管理员脚本：`deploy/allow-wireguard-infrastructure.ps1`。
+
+
+## P0 事故：Redis 公网域名连不上，portproxy 有规则但没在听（2026-09-18）
+
+这是公网基础设施入口事故的主记录。Docker 内业务连 `chat-web-redis:6379` 不受影响。
+
+### 影响
+
+- 级别：P0。`chat-web-redis.lisfes.cn:6379` 反复连不上；RedisInsight / 开发电脑客户端失败。同一条链路的 RabbitMQ `5672` / `15672`、Kafka `9092` 也会一起挂。
+- 直接症状：本机 `127.0.0.1:16379` Redis 协议正常（`NOAUTH`）；Auth 容器健康检查 Redis `connected=true`；公网域名 TCP 能握手后被 RST，或 Redis 客户端超时。
+- 不要误判：`netsh interface portproxy show v4tov4` 仍显示 `10.66.0.2:18080 -> 127.0.0.1:16379` **不等于** 正在监听。`Test-NetConnection chat-web-redis.lisfes.cn -Port 6379` 成功只说明云端 Nginx 接受了 TCP，不说明上游 `18080` 活着。
+
+### 时间线
+
+1. Redis 公网链路固定为：域名 `6379` → 云端 Nginx stream → WireGuard `10.66.0.2:18080` → 本机 portproxy → `127.0.0.1:16379` → 容器 `6379`。
+2. Docker Desktop 重启 / WireGuard 抖动后，Windows `iphlpsvc` 丢掉绑在 `10.66.0.2` 上的监听套接字，但 netsh 配置还在。
+3. 2026-09-18：容器约 00:20 重建后，`netstat` 上 `18080`–`18083` 均无 `LISTENING`。本机 Python 探测 `10.66.0.2:18080` 拒绝或超时；公网 `PING` 被 RST。
+4. 处置：重绑四条 portproxy，安装 SYSTEM 计划任务 `ChatWeb-WireGuard-PortProxy`（开机 45 秒后、之后每 5 分钟）自动补监听。禁止把 Redis 再发布到 `10.66.0.2:6379`。
+
+### 根因
+
+Windows `netsh portproxy` 把监听绑在 WireGuard 地址 `10.66.0.2` 上。接口或 IP Helper 重启后：
+
+| 检查项 | 故障时 | 正常时 |
+| --- | --- | --- |
+| `netsh interface portproxy show v4tov4` | 仍有 `18080→16379` | 同样有规则 |
+| `netstat -ano` 是否 `10.66.0.2:18080 LISTENING` | **无** | 有，进程为 `svchost` / IP Helper |
+| 本机 `127.0.0.1:16379` Redis 协议 | 通 | 通 |
+| 公网域名 Redis 协议 | RST / 超时 | `-NOAUTH` 或 `PONG` |
+| Docker 内 `chat-web-redis:6379` | 通 | 通 |
+
+Docker Desktop 不会把容器端口映射到 WireGuard 网卡，所以必须继续用 portproxy，不能改回 `10.66.0.2:6379`。
+
+### 错误处置（禁止再做）
+
+- 只看 netsh 有规则、或公网 `Test-NetConnection :6379` 成功，就宣布 Redis 好了。
+- 打开 RedisInsight TLS / `rediss://`。
+- 把 Redis 发布回 `0.0.0.0:6379` 或 `10.66.0.2:6379`。
+- 为修公网 Redis 去改业务服务 `NACOS_REGISTER_IP`，或本机再跑 Gateway。
+- 把防火墙 RemoteAddress 从 `10.66.0.0/24` 改成 `10.66.0.1` 或 `10.66.0.3` 其中一个。
+- 把云端 Redis/Rabbit/Kafka 上游从 `10.66.0.2` 改到 `10.66.0.3`。
+- 执行 `docker compose down -v` 或删除 `20260801231547_redis-data`。
+
+### 正确处置
+
+1. 先测三层：本机 `127.0.0.1:16379` 协议、`netstat` 是否监听 `10.66.0.2:18080`、公网域名发 `PING\r\n` 是否返回 Redis 报文。
+2. 管理员运行 `allow-wireguard-infrastructure.ps1`。它会重建防火墙、四条代理，并把静默修复脚本装到 `C:\ProgramData\chat-web\`，注册计划任务。
+3. 任务每 5 分钟检查监听；缺了就删加 portproxy 并重启 `iphlpsvc` 再绑一次。日志：`C:\ProgramData\chat-web\portproxy-repair.log`。
+4. Redis 客户端继续明文、`chat-web-redis.lisfes.cn:6379`、填密码；本机程序用 `127.0.0.1:16379`；容器用 `chat-web-redis:6379`。
+
+### 验收命令
+
+```powershell
+docker inspect chat-web-redis --format '{{json .HostConfig.PortBindings}}'
+netstat -ano | findstr LISTENING | findstr 18080
+netsh interface portproxy show v4tov4
+Get-ScheduledTask -TaskName ChatWeb-WireGuard-PortProxy
+python -c "import socket; s=socket.create_connection(('127.0.0.1',16379),5); s.sendall(b'PING\r\n'); print(s.recv(64)); s.close()"
+python -c "import socket; s=socket.create_connection(('chat-web-redis.lisfes.cn',6379),8); s.sendall(b'PING\r\n'); print(s.recv(64)); s.close()"
+```
+
+预期：Redis 只发布 `127.0.0.1:16379`；`10.66.0.2:18080` 为 `LISTENING`；两条 `PING` 都返回 `-NOAUTH Authentication required.` 或认证后 `PONG`。只握手成功但发 `PING` 被 RST，仍算失败。
+
 ## P0 事故：同机服务注册 WireGuard 地址导致业务 503（2026-09-17）
 
 这是跨服务事故的主记录。Skyline、Finance、Auth、Account、CRM 与同机 Gateway 都适用。
@@ -301,7 +387,7 @@ Redis 客户端使用明文连接（不要使用 `rediss://`），填写域名�
 
 这些基础设施入口都是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2` 的连通性及本机防火墙。RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`，Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`。
 
-本机 Windows 防火墙只允许 `chat-web-home` WireGuard 接口访问必要端口（Account `5010`、`18080`–`18083` 以及现有 HTTP、MySQL、Nacos 入口），不再放行旧的 RabbitMQ/Kafka 端口 `5672`、`15672`、`9092`。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建四条本机回环代理，并清理旧的 `6379`、`16379`、`5672`、`15672`、`9092` 监听规则。首次配置或端口出现 `502` 时运行以下命令，脚本会自动弹出 UAC 请求管理员权限：
+本机 Windows 防火墙只允许 `chat-web-home` WireGuard 接口访问必要端口（Account `5010`、`18080`–`18083` 以及现有 HTTP、MySQL、Nacos 入口），不再放行旧的 RabbitMQ/Kafka 端口 `5672`、`15672`、`9092`。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建四条本机回环代理，并清理旧的 `6379`、`16379`、`5672`、`15672`、`9092` 监听规则。首次配置、Docker Desktop 重启后公网 Redis 连不上、或 `18080` 没有 LISTENING 时运行以下命令。脚本会弹出 UAC，重建代理，并安装开机/每 5 分钟自动修复任务：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File F:\chat-web-service\chat-web-gateway-service\deploy\allow-wireguard-infrastructure.ps1
@@ -315,7 +401,7 @@ netsh interface portproxy show v4tov4
 Test-NetConnection chat-web-redis.lisfes.cn -Port 6379
 ```
 
-预期 Redis 容器仅发布 `127.0.0.1:16379`，portproxy 存在 `10.66.0.2:18080 -> 127.0.0.1:16379`，且不存在 `10.66.0.2:6379` 或 `10.66.0.2:16379` 的旧监听规则。若仅 TCP 成功但 RedisInsight 仍提示无法连接，应从云端执行 `nc -vz 10.66.0.2 18080`，再检查云端 Nginx stream 上游和 WireGuard 防火墙；认证失败时只重新填写密码，不启用 TLS。
+预期 Redis 容器仅发布 `127.0.0.1:16379`，portproxy 存在 `10.66.0.2:18080 -> 127.0.0.1:16379`，`netstat` 能看到 `10.66.0.2:18080 LISTENING`，且不存在 `10.66.0.2:6379` 或 `10.66.0.2:16379` 的旧监听规则。计划任务 `ChatWeb-WireGuard-PortProxy` 应为 Ready。若仅 TCP 成功但 RedisInsight 仍提示无法连接，先对本机和公网域名发送 Redis `PING`；再从云端执行 `nc -vz 10.66.0.2 18080`，检查云端 Nginx stream 上游和 WireGuard 防火墙；认证失败时只重新填写密码，不启用 TLS。
 
 确认 RabbitMQ/Kafka 映射和旧规则清理：
 
@@ -425,7 +511,8 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 | Gateway 认证返回 `503` | Auth 内部认证接口不可达或服务凭据缺失/不一致                  | 检查 Auth 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
 | 管理端 CORS 预检失败   | Nacos 未启用凭据或未允许管理端 Origin                         | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头             |
 | 登录页验证码跨域 / `ERR_FAILED 200` | Nginx 把整个 Gateway 换成本地 `yarn dev`，或 Helmet `CORP=same-origin` | Nginx 只反代 Docker Gateway 并覆盖 `CORP=cross-origin`；本地业务联调用 Nacos 高权重，不要换入口；不要先改 Nacos CORS |
-| Redis 域名连接超时     | 云端仍转发到旧的 6379，或本机 18080 代理缺失                  | 确认云端上游为 `10.66.0.2:18080`，重跑端口代理脚本并检查 16379 映射   |
+| Redis 域名连接超时 / 握手后 RST | netsh 仍有 `18080` 规则但没有 LISTENING；Docker/WG 重启丢掉了绑定 | 看 `netstat` 是否监听 `10.66.0.2:18080`，不要只看 netsh；跑 `allow-wireguard-infrastructure.ps1` 或等计划任务 `ChatWeb-WireGuard-PortProxy`；再用 Redis `PING` 验收 |
+| 公网 Redis 和好了但 `10.66.0.3` 直连失败，或反过来 | 防火墙 RemoteAddress 写成单个对端 IP，两台机器互抢 | Remote 改回 `10.66.0.0/24`，删除单 IP 遗留规则；不要改云端上游；两边都测才算过 |
 | 业务健康检查 503 但容器自身 UP | 同机服务把 Nacos 注册成不可达的 `10.66.0.2` | 删除业务服务 `NACOS_REGISTER_IP` 并重建容器；从 Gateway 复测 `/api/<service>/health*`；不要写回 `10.66.0.2` |
 
 ## 恢复顺序
