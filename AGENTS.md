@@ -143,6 +143,17 @@
 - `.env.example` 只列出启动所需参数和明确占位符；真实密钥、Token、私钥和生产 `.env` 不得提交。
 - 每次改动至少执行格式检查、TypeScript 类型检查和 Nest 构建；涉及代理、服务发现或部署时增加运行级验证。
 
+### WireGuard 双机规约
+
+- 角色锁死：`10.66.0.1` 云端 Nginx；`10.66.0.2` Home 基础设施宿主（Redis/Rabbit/Kafka 只在这台）；`10.66.0.3` 另一台客户端，禁止把基础设施迁过去。
+- 云端 Nginx stream 上游永远指向 `10.66.0.2:18080-18083`，禁止改成 `10.66.0.3`。
+- 本机防火墙 `Chat Web infrastructure via WireGuard` 的 RemoteAddress 必须是 `10.66.0.0/24`，同时覆盖 `.1` 和 `.3`。禁止改成单个对端 IP；只许并集不许替换。改这边规则不能影响另一台连接。
+- 删除 `Chat Web Rabbit Kafka via WireGuard` 这类单 IP 遗留规则。计划任务 `ChatWeb-WireGuard-PortProxy` 只修监听，禁止改防火墙。
+- WireGuard 服务端每个 peer 的 AllowedIPs 必须是该 peer 的 `/32`，禁止把 `10.66.0.0/24` 挂在某一个 peer 上。客户端 AllowedIPs 用 `10.66.0.0/24`，禁止 `0.0.0.0/0`。
+- 阿里云安全组源 IP 只加不删。
+- 验收必须两边都测：公网 Redis（源 `.1`）和 `10.66.0.3` 直连 `10.66.0.2:18080`。只测一边不算过。
+- 管理员脚本：`deploy/allow-wireguard-infrastructure.ps1`。排障细节见 `deploy/RUNBOOK.md`。
+
 ### 部署变更记录
 
 任何会影响 Docker 构建、服务启动、运行参数、Nacos、路由、端口、健康检查、Runner、部署目录或外部网络的修改，都必须在同一次改动中更新 `deploy/CHANGELOG.md`。
