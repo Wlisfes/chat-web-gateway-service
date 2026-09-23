@@ -121,7 +121,8 @@
 
 - 功能权限码与数据范围资源编码分离。权限码用于 `@RequirePermissions`。
 - 数据范围 `resourceCode` 格式固定为 `chat:{服务}:{资源}`，全小写，例如 `chat:account:user`、`chat:crm:consumer`、`chat:finance:voucher`。`*` 表示默认规则。
-- 查询数据范围必须调用 `AuthorizationService.resolveDataScope(uid, resourceCode)`，禁止把数据范围挂到 `AuthPrincipal`。
+- 只有使用了 `@RequirePermissions` 的接口才会请求 `/feign/auth/permission/authorized-principal`。多个权限码为或关系；传入 `*` 时跳过权限校验，但仍查询当前用户的角色与数据权限。未使用该装饰器的接口不得调用该 Feign。
+- 权限校验通过后，Auth 返回的 `superAdmin`、`roleCodes`、`all`、`items` 由 `AuthorizationGuard` 挂到 `request.user`，业务代码从 `CurrentPrincipal` 读取，不得再调用 `hasPermission` / `isSuperAdmin` / `resolveDataScope`，也不得再请求 `/permission/check`。
 
 ## Git 提交规范
 
