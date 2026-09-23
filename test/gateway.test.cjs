@@ -466,7 +466,12 @@ function createHttpContext(path) {
     }
 }
 
-const { createKnife4jServices } = require('../dist/modules/gateway/knife4j-services')
+const {
+    createKnife4jServices,
+    isGatewayOpenApiJsonPath,
+    rewriteGatewaySwaggerDocument,
+    rewriteGatewaySwaggerPath
+} = require('../dist/modules/gateway/knife4j-services')
 
 test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
     const routes = [
@@ -491,22 +496,19 @@ test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
             name: 'chat-web-account-service',
             url: '/api/account/api/swagger-json',
             swaggerVersion: '3.0.0',
-            location: '/api/account/api/swagger',
-            servicePath: '/api/account'
+            location: '/api/account/api/swagger'
         },
         {
             name: 'chat-web-finance-service',
             url: '/api/finance/api/swagger-json',
             swaggerVersion: '3.0.0',
-            location: '/api/finance/api/swagger',
-            servicePath: '/api/finance'
+            location: '/api/finance/api/swagger'
         },
         {
             name: 'chat-web-auth-service',
             url: '/api/auth/api/swagger-json',
             swaggerVersion: '3.0.0',
-            location: '/api/auth/api/swagger',
-            servicePath: '/api/auth'
+            location: '/api/auth/api/swagger'
         }
     ])
 })
@@ -521,3 +523,32 @@ function route(id, prefix, serviceName) {
         stripPrefix: prefix.startsWith('/api/')
     }
 }
+
+test('Knife4j OpenAPI 不给 Feign 和内部接口加 /api 前缀', () => {
+    assert.equal(isGatewayOpenApiJsonPath('/api/auth/api/swagger-json', '/api/auth'), true)
+    assert.equal(isGatewayOpenApiJsonPath('/api/auth/token/login', '/api/auth'), false)
+    assert.equal(
+        rewriteGatewaySwaggerPath('/feign/auth/permission/authorized-principal', '/api/auth'),
+        '/feign/auth/permission/authorized-principal'
+    )
+    assert.equal(rewriteGatewaySwaggerPath('/internal/auth/token/introspect', '/api/auth'), '/internal/auth/token/introspect')
+    assert.equal(rewriteGatewaySwaggerPath('/token/login', '/api/auth'), '/api/auth/token/login')
+    assert.equal(rewriteGatewaySwaggerPath('/permission/resolve', '/api/auth'), '/api/auth/permission/resolve')
+
+    const rewritten = rewriteGatewaySwaggerDocument(
+        {
+            openapi: '3.0.0',
+            paths: {
+                '/token/login': { get: { summary: '登录' } },
+                '/feign/auth/permission/authorized-principal': { post: { summary: '授权身份' } },
+                '/internal/auth/token/introspect': { post: { summary: '内省' } }
+            }
+        },
+        '/api/auth'
+    )
+    assert.deepEqual(rewritten.servers, [{ url: '/' }])
+    assert.equal(rewritten.paths['/api/auth/token/login'].get.summary, '登录')
+    assert.equal(rewritten.paths['/feign/auth/permission/authorized-principal'].post.summary, '授权身份')
+    assert.equal(rewritten.paths['/internal/auth/token/introspect'].post.summary, '内省')
+    assert.equal(rewritten.paths['/token/login'], undefined)
+})

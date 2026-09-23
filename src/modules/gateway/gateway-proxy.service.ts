@@ -19,6 +19,7 @@ import { GatewayRouteConfig } from '@/modules/gateway/gateway.interface'
 import { shouldLogGatewayRequestPath } from '@/modules/gateway/gateway-request-logging.middleware'
 import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
 import { GatewayAuthService } from '@/modules/auth/gateway-auth.service'
+import { isGatewayOpenApiJsonPath, rewriteGatewaySwaggerDocument } from '@/modules/gateway/knife4j-services'
 
 type UpgradeableProxy = ProxyRequestHandler & {
     upgrade: (request: Request, socket: Socket, head: Buffer) => void
@@ -156,6 +157,10 @@ export class GatewayProxyService {
         }
 
         // `/api/**` 是客户端入口，`/feign/**` 是服务间入口；后者不对公网暴露，由反向代理只放行 `/api/**` 保证。
+        // 公开文档先改写 OpenAPI paths，再交给代理；避免 Knife4j 给 Feign 加上 /api/{service} 前缀。
+        application.use('/api', (request, response, next) => {
+            void this.tryServeRewrittenSwagger(request, response, next)
+        })
         application.use('/api', handler)
         application.use('/feign', handler)
         this.logger.log('已挂载 Nacos 动态网关路由：/api/** 与 /feign/**')
@@ -314,6 +319,51 @@ export class GatewayProxyService {
         const requestUrl = new URL(request.originalUrl || request.url || '/', 'http://gateway.local')
         const pathname = route.stripPrefix ? requestUrl.pathname.slice(route.prefix.length) || '/' : requestUrl.pathname
         return `${pathname}${requestUrl.search}`
+    }
+
+    /** 仅拦截公开路由下的 swagger-json；其余请求继续走代理。 */
+    private async tryServeRewrittenSwagger(request: Request, response: Response, next: () => void): Promise<void> {
+        const route = this.findRoute(request)
+        if (!route || !route.prefix.startsWith('/api/')) {
+            next()
+            return
+        }
+        const pathname = new URL(request.originalUrl || request.url || '/', 'http://gateway.local').pathname
+        if (!isGatewayOpenApiJsonPath(pathname, route.prefix)) {
+            next()
+            return
+        }
+        try {
+            const document = await this.fetchDownstreamSwagger(route, request)
+            response.status(200).json(rewriteGatewaySwaggerDocument(document, route.prefix))
+        } catch (error) {
+            this.logger.error(`改写 ${route.serviceName} OpenAPI 失败：${error instanceof Error ? error.message : String(error)}`)
+            response.setHeader(BUSINESS_CODE_HEADER, '502')
+            response.status(200).json(createApiResponse(null, { code: 502, message: `服务 ${route.id} 文档暂时不可用` }))
+        }
+    }
+
+    /** 读取下游服务原始 OpenAPI；路径改写在网关完成，不修改各服务自身文档。 */
+    private async fetchDownstreamSwagger(route: GatewayRouteConfig, request: Request): Promise<Record<string, unknown>> {
+        const serviceUrl = await this.nacosService.resolveService(route.serviceName, route.fallbackEnabled ? route.fallbackUrl : '')
+        const endpoint = new URL('/api/swagger-json', `${serviceUrl.replace(/\/+$/, '')}/`)
+        const requestId = resolveRequestId(request.headers['x-request-id'])
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+                accept: 'application/json',
+                'x-request-id': requestId
+            },
+            signal: AbortSignal.timeout(this.serviceConfig.getProxyTimeout())
+        })
+        if (!response.ok) {
+            throw new Error(`下游返回 HTTP ${response.status}`)
+        }
+        const document = (await response.json()) as unknown
+        if (!document || typeof document !== 'object' || Array.isArray(document)) {
+            throw new Error('下游返回了无效的 OpenAPI 文档')
+        }
+        return document as Record<string, unknown>
     }
 
     private setProxyHeaders(proxyRequest: ClientRequest, route: GatewayRouteConfig, request?: Request): void {
