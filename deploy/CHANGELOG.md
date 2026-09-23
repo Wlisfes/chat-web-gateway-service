@@ -1,5 +1,12 @@
 # 部署变更记录
 
+## 2026-09-23：Knife4j 聚合文档不再给 Feign 加上 /api 前缀
+
+- 影响机器：chat-home-server Gateway。
+- 变更内容：转发下游 /api/swagger-json 时，把业务路径写成 /api/{service}/...，/feign/** 与 /internal/** 保持原路径；去掉 Knife4j servicePath，避免试调变成 /api/auth/feign/...。共享包升级到 @wlisfes/chat-web-base-schema@1.6.36。
+- 验证命令：yarn test:full；打开 /doc.html 选鉴权服务，Feign 试调路径应为 /feign/auth/permission/authorized-principal，登录接口仍为 /api/auth/token/login。
+- 回滚方法：回退本次网关提交。
+
 ## 2026-09-18：Nest POST 默认 HTTP 201 对外改成 200
 
 - 影响机器：`chat-home-server` Gateway。
