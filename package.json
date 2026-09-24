@@ -16,7 +16,8 @@
         "start": "node scripts/start-with-cluster-port.cjs start",
         "dev": "node scripts/start-with-cluster-port.cjs start --watch",
         "debug": "node scripts/start-with-cluster-port.cjs start --debug --watch",
-        "start:prod": "node dist/main"
+        "start:prod": "node dist/main",
+        "deploy": "node scripts/deploy-branch.cjs"
     },
     "dependencies": {
         "@nestjs/common": "^11.0.1",
