@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-09-24：网关访问日志记录请求体，业务异常日志补充执行方法
+
+- 影响机器：chat-home-server Gateway。
+- 关联版本：@wlisfes/chat-web-base-schema@1.6.43。
+- 变更内容：共享包在网关流式转发时旁路复制 JSON、表单和文本请求体（最多 4KB），访问日志的 body 不再为空，敏感字段显示为 [已隐藏]；转发给下游的请求体保持不变。
+- 机器侧操作：无，随网关镜像发布。
+- 验证命令：yarn test:full；POST /api/account/user/update 传入错误手机号，Dozzle 中网关日志 body 应显示入参，password 等字段为 [已隐藏]。
+- 回滚方法：回退本次网关提交，共享包依赖恢复为 1.6.41。
 ## 2026-09-23：Knife4j 聚合文档不再给 Feign 加上 /api 前缀
 
 - 影响机器：chat-home-server Gateway。
