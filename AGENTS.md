@@ -70,7 +70,7 @@
 - Controller 必须保持为薄协议层：只声明路由、权限、Swagger/Apifox 元数据，接收 `query`、`body`、当前身份或必要请求/响应上下文，并将参数原样交给同名 Service 方法；禁止解构/改名业务参数、补业务默认值、拼装业务响应、访问 Repository 或编写业务判断。设置 Cookie、响应头、重定向和流式响应等纯 HTTP 协议操作可以保留在 Controller。
 - Controller 与对应 Service 的公开接口方法必须统一使用 `public async`，并采用 `httpBase<Service><Action><Resource>` 命名；两层方法名必须完全一致。Controller 不得调用 `create`、`list`、`findOne`、`update` 等另一套简写方法名。
 - Controller 的 `GET` 只接收 `@Query()` DTO，`POST` 只接收 `@Body()` DTO；局部变量使用 `query`、`body` 或 `input` 等能够准确表达来源的名称，无请求 DTO 的接口不制造空 DTO。每个接口都必须使用 `ApiServiceDecorator` 完整声明请求来源、请求 DTO、响应 DTO、数组标识和中文说明。
-- Service 负责业务编排和事务边界，公开接口方法必须添加简洁中文职责注释并显式声明 `Promise<...>` 返回类型；入参优先接收完整 DTO，不得要求 Controller 拆字段或做协议转换。DTO 在 Service 中优先使用 `import * as XxxDto` 归组引用。
+- Service 负责业务编排和事务边界，公开接口方法必须添加简洁中文职责注释并显式声明 `Promise<...>` 返回类型；入参优先接收完整 DTO，不得要求 Controller 拆字段或做协议转换。DTO 在 Service 中统一使用 `import * as XxxDto` 归组引用。
 - 分页查询统一返回 `PageResult<Entity>`，使用 `DataBaseService.builder` 构造 QueryBuilder，别名统一为 `t`；筛选、排序、分页和 `getManyAndCount` 应在同一 builder 回调内清晰完成。禁止在业务模块重复封装 QueryBuilder 或创建无意义 Repository Adapter。
 - 可复用的实体查找、存在性校验、唯一性校验、树校验、锁表等工具逻辑放入同模块 `<module>.utils.service.ts`，使用 `@Injectable()` 并由 Module 注册注入；主 Service 只保留用例编排。不得把仅调用一次且没有复用价值的简单业务步骤机械拆成工具类。
 - 多步写操作、唯一性检查、层级结构调整和关联关系替换必须由 Service 明确建立事务；需要并发保护时通过 Utils Service 锁定相关数据，再执行校验和写入。
@@ -110,6 +110,7 @@
 - Service：`InjectRepository`、`Repository`、`DataBaseService`、`Brackets`、`In`、`EntityManager` 从 `@wlisfes/chat-web-base-schema/database` 导入；`isEmpty` / `isNotEmpty` 从 `@wlisfes/chat-web-base-schema/utils` 导入。
 - DTO 文件：`@nestjs/swagger` → `class-transformer` / `class-validator` → schema `decorator` / `utils` → `import * as Schema`，字段用 `PickType(Schema.TbXxxDto, ...)`。
 - Module：`TypeOrmModule` 从 `@nestjs/typeorm` 导入；有数据库的服务使用 `TypeOrmModule.forFeature(本服务 ENTITIES 常量)`，不要在业务 Module 里逐个罗列实体。
+- 从同一 interface、dto、schema 或类型定义模块具名导入的标识符超过 3 个时，一律改为 `import * as XxxDto from ...` 命名空间导入（仅类型用途时使用 `import type * as XxxTypes from ...`），别名沿用 `<领域>Dto`、`<领域>Types`、`Schema` 等既有风格；`@nestjs/*`、`class-validator`、`class-transformer`、`typeorm` 等框架装饰器和校验器无论数量多少一律保持具名导入，禁止写成 `Nest.Injectable()`、`Validator.IsString()` 这类命名空间调用。
 
 ### 测试文件
 
