@@ -16,6 +16,7 @@
 - 统一使用 4 空格、无分号、单引号、`printWidth: 140`、无尾随逗号。
 - 源码和脚本使用 UTF-8；Shell、YAML、Dockerfile 提交为 LF。
 - 业务源码和配置文件必须编写清晰、必要的中文注释；新增配置项必须同步说明用途，修改或格式化时必须保留既有注释，不得删除、覆盖或改写；注释中不得出现真实密码、Token、私钥等敏感信息。
+- 仓库 `.gitattributes` 必须用 `* text=auto` 配合 `*.ts`、`*.cjs`、`*.json`、`*.md` 等 `eol=lf` 固定行尾，`.prettierrc` 显式声明 `"endOfLine": "lf"`；Git 安装默认的 system 级 `core.autocrlf=true` 会把工作区检出成 CRLF，导致本地 `format:check` 报出与 CI 不一致的假失败。克隆或修改行尾规则后如需修正已检出文件，删除 `src`、`test`、`scripts` 目录再 `git checkout --` 重新检出即可，不要用 `prettier --write` 批量改写无关文件。
 
 ## 目录与文件命名
 
