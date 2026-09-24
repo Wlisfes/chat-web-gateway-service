@@ -70,7 +70,7 @@
 - Controller 必须保持为薄协议层：只声明路由、权限、Swagger/Apifox 元数据，接收 `query`、`body`、当前身份或必要请求/响应上下文，并将参数原样交给同名 Service 方法；禁止解构/改名业务参数、补业务默认值、拼装业务响应、访问 Repository 或编写业务判断。设置 Cookie、响应头、重定向和流式响应等纯 HTTP 协议操作可以保留在 Controller。
 - Controller 与对应 Service 的公开接口方法必须统一使用 `public async`，并采用 `httpBase<Service><Action><Resource>` 命名；两层方法名必须完全一致。Controller 不得调用 `create`、`list`、`findOne`、`update` 等另一套简写方法名。
 - Controller 的 `GET` 只接收 `@Query()` DTO，`POST` 只接收 `@Body()` DTO；局部变量使用 `query`、`body` 或 `input` 等能够准确表达来源的名称，无请求 DTO 的接口不制造空 DTO。每个接口都必须使用 `ApiServiceDecorator` 完整声明请求来源、请求 DTO、响应 DTO、数组标识和中文说明。
-- Service 负责业务编排和事务边界，公开接口方法必须添加简洁中文职责注释并显式声明 `Promise<...>` 返回类型；入参优先接收完整 DTO，不得要求 Controller 拆字段或做协议转换。DTO 在 Service 中优先使用 `import * as XxxDto` 归组引用。
+- Service 负责业务编排和事务边界，公开接口方法必须添加简洁中文职责注释并显式声明 `Promise<...>` 返回类型；入参优先接收完整 DTO，不得要求 Controller 拆字段或做协议转换。DTO 在 Service 中统一使用 `import * as XxxDto` 归组引用。
 - 分页查询统一返回 `PageResult<Entity>`，使用 `DataBaseService.builder` 构造 QueryBuilder，别名统一为 `t`；筛选、排序、分页和 `getManyAndCount` 应在同一 builder 回调内清晰完成。禁止在业务模块重复封装 QueryBuilder 或创建无意义 Repository Adapter。
 - 可复用的实体查找、存在性校验、唯一性校验、树校验、锁表等工具逻辑放入同模块 `<module>.utils.service.ts`，使用 `@Injectable()` 并由 Module 注册注入；主 Service 只保留用例编排。不得把仅调用一次且没有复用价值的简单业务步骤机械拆成工具类。
 - 多步写操作、唯一性检查、层级结构调整和关联关系替换必须由 Service 明确建立事务；需要并发保护时通过 Utils Service 锁定相关数据，再执行校验和写入。
@@ -110,6 +110,7 @@
 - Service：`InjectRepository`、`Repository`、`DataBaseService`、`Brackets`、`In`、`EntityManager` 从 `@wlisfes/chat-web-base-schema/database` 导入；`isEmpty` / `isNotEmpty` 从 `@wlisfes/chat-web-base-schema/utils` 导入。
 - DTO 文件：`@nestjs/swagger` → `class-transformer` / `class-validator` → schema `decorator` / `utils` → `import * as Schema`，字段用 `PickType(Schema.TbXxxDto, ...)`。
 - Module：`TypeOrmModule` 从 `@nestjs/typeorm` 导入；有数据库的服务使用 `TypeOrmModule.forFeature(本服务 ENTITIES 常量)`，不要在业务 Module 里逐个罗列实体。
+- 从同一 interface、dto、schema 或类型定义模块具名导入的标识符超过 3 个时，一律改为 `import * as XxxDto from ...` 命名空间导入（仅类型用途时使用 `import type * as XxxTypes from ...`），别名沿用 `<领域>Dto`、`<领域>Types`、`Schema` 等既有风格；`@nestjs/*`、`class-validator`、`class-transformer`、`typeorm` 等框架装饰器和校验器无论数量多少一律保持具名导入，禁止写成 `Nest.Injectable()`、`Validator.IsString()` 这类命名空间调用。
 
 ### 测试文件
 
@@ -131,6 +132,12 @@
 - 提交摘要、正文和脚注必须使用中文；类型前缀保留上述英文小写关键字，代码标识符、命令和版本号可按实际需要保留原文。
 - 每个提交应聚焦单一目的，摘要使用动词开头并准确说明影响范围，禁止使用 `update`、`modify` 等无意义描述或整句英文提交信息。
 - 示例：`feat: 新增客户归属人筛选`、`fix: 修复 Nacos 服务注册失败`、`docs: 补充部署回滚说明`。
+- 日常开发在 `developer` 分支进行；`main` 只接收来自业务分支的合并，不直接提交。
+- 发布统一执行 `npm run deploy`：同步远端、按需递增版本号、推送当前分支、创建或复用指向 `main` 的 PR 并合并、再把当前分支快进到 `main`。不得手工拆成多条命令执行。
+- 版本号由发布脚本维护：当前 `package.json` 版本号已经存在于 `main` 时递增补丁号并生成 `chore(release): vX.Y.Z` 提交；上一次发布失败、版本号尚未进入 `main` 时沿用同一版本号重试，不得因反复发布把版本号越推越高。
+- 快进这一步不可省略。GitHub 的 Merge commit 会在 `main` 上新建一条合并提交，当前分支指针不会移动；不快进就会一直显示 behind，其他设备在同一分支上同步不到最新代码。
+- `npm run deploy` 在 `main` 分支或工作区有未提交改动时直接失败；最后的快进只做 fast-forward，不产生新的合并提交，也不会改动文件。
+- 禁止为了消除分支落后提示而把 `main` 反向合并进业务分支产生多余的合并提交。
 
 ## 配置、文档与部署
 
