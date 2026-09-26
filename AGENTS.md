@@ -180,6 +180,7 @@
     - 当 `PATCH` 达到 `99` 时进位：`MINOR + 1` 且 `PATCH` 归 `0`（例如 `1.0.99` → `1.1.0`）
     - 不得发布已经存在的版本号，不得跳号、降版本或使用预发布标签
 - `chat-web-base-schema` 由 `main` 上的 Publish 流水线自动计算版本、发布到 GitHub Packages、回写 `package.json` 并打 `vX.Y.Z` 标签；Agent 不得在本地修改共享包版本号，也不得执行 `npm publish`。
+- 本地联调未发布的 `chat-web-base-schema` 改动时，在 Schema 仓库执行 `yarn local:link <服务名>`（服务名可省略 `chat-web-` 前缀和 `-service` 后缀，不传则覆盖全部依赖服务），把本地构建产物复制到服务 `node_modules`；联调结束执行 `yarn local:unlink <服务名>` 恢复 `yarn.lock` 锁定的 npm 版本，`yarn local:status` 查看当前来源。禁止使用 `yarn link`、`file:`、`link:` 或修改服务 `package.json`、`yarn.lock` 引用本地 Schema，避免 `typeorm`、`@nestjs/*` 被加载两份；本地产物仅用于调试，上线前仍须发布 Schema 并在服务中升级到明确版本。
 - 其他服务和管理端在合并 `main` 发布前，由 Agent 将 `package.json` 的 `version` 改为下一个修订号，提交信息使用 `chore(release): vX.Y.Z`，并同步打 `vX.Y.Z` 标签；Docker 镜像仍按 Git SHA 构建部署。
 
 ## 本仓库专属补充规约
