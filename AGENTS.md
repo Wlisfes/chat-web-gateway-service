@@ -49,6 +49,7 @@
 - 业务服务独立管理数据库连接；TypeORM 必须保持 `synchronize: false` 和 `migrationsRun: false`，数据库和表结构由外部 Schema SQL 管理。
 - TypeORM Entity、完整字段 DTO 和表 SQL 统一由 `chat-web-base-schema` 管理，业务服务只安装并使用该包。
 - 数据库和表由外部 SQL 创建或变更，服务启动过程不得自动建表或改表。
+- 本地运行和 Docker 部署的环境都是测试环境，Schema 增量 SQL（`sql/changes/*.sql`）可以直接在对应测试库执行，不需要等待人工确认；执行前确认连接的是本服务测试库，执行后核对表结构并在汇报中说明已执行的 SQL 文件。
 - Nacos 相关代码统一位于 `src/modules/nacos/`，配置项命名在所有服务中保持一致。
 - 所有公开微服务路由和跨域白名单统一维护在 Nacos `chat-web-gateway-service.yaml`；新增服务必须追加 `gateway.routes`，不在网关源码中硬编码新代理。
 - Nacos 配置中的 `gateway.cors.allowedOrigins` 使用完整 HTTP(S) Origin，禁止填写带路径的 URL；生产环境不得使用 `*`。
