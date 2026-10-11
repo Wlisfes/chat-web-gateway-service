@@ -6,7 +6,7 @@
     "private": true,
     "license": "UNLICENSED",
     "scripts": {
-        "install": "node scripts/yarn-auth.cjs install --ignore-scripts",
+        "install": "node scripts/yarn-auth.cjs install --frozen-lockfile --check-files --ignore-scripts",
         "base:update": "node scripts/yarn-auth.cjs upgrade @wlisfes/chat-web-base-schema --latest",
         "build": "nest build",
         "format": "prettier --write \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \".github/workflows/*.yml\"",

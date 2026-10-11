@@ -35,7 +35,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 
 ```bash
 copy .env.example .env
-yarn install
+node scripts/yarn-auth.cjs install --frozen-lockfile --check-files --ignore-scripts
 yarn dev
 ```
 
