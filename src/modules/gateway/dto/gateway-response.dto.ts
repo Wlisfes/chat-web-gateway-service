@@ -1,10 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger'
 
+/** 打开 Knife4j 聚合文档响应：GET /。 */
 export class DocumentationRedirectResponseDto {
     @ApiProperty({ description: 'Knife4j 文档地址', example: '/doc.html' })
     url: string
 }
 
+/** GatewayInfoResponseDto.routes 字段结构；查看网关信息及已配置路由响应：GET /gateway。 */
 export class GatewayRouteInfoResponseDto {
     @ApiProperty({ description: '路由 ID', example: 'account-service' })
     id: string
@@ -16,6 +18,7 @@ export class GatewayRouteInfoResponseDto {
     serviceName: string
 }
 
+/** 查看网关信息及已配置路由响应：GET /gateway。 */
 export class GatewayInfoResponseDto {
     @ApiProperty({ description: '网关服务名称', example: 'chat-web-gateway-service' })
     name: string
@@ -36,6 +39,7 @@ export class GatewayInfoResponseDto {
     routes: GatewayRouteInfoResponseDto[]
 }
 
+/** GatewayHealthResponseDto.discovery 字段结构；响应：GET /health、GET /health/ready（网关健康检查；网关就绪检查）。 */
 export class NacosStatusResponseDto {
     @ApiProperty({ description: '是否启用 Nacos 配置中心', example: true })
     configEnabled: boolean
@@ -59,6 +63,7 @@ export class NacosStatusResponseDto {
     discoveryError?: string
 }
 
+/** GatewayHealthResponseDto.routes 字段结构；响应：GET /health、GET /health/ready（网关健康检查；网关就绪检查）。 */
 export class GatewayRouteHealthResponseDto {
     @ApiProperty({ description: '路由 ID', example: 'account-service' })
     id: string
@@ -73,6 +78,7 @@ export class GatewayRouteHealthResponseDto {
     source: 'nacos' | 'fallback' | 'unavailable'
 }
 
+/** 网关存活检查响应：GET /health/live。 */
 export class GatewayLivenessResponseDto {
     @ApiProperty({ description: '网关状态', enum: ['UP'], example: 'UP' })
     status: 'UP'
@@ -81,6 +87,7 @@ export class GatewayLivenessResponseDto {
     timestamp: string
 }
 
+/** 响应：GET /health、GET /health/ready（网关健康检查；网关就绪检查）。 */
 export class GatewayHealthResponseDto extends GatewayLivenessResponseDto {
     @ApiProperty({ description: 'Nacos 状态', type: NacosStatusResponseDto })
     discovery: NacosStatusResponseDto

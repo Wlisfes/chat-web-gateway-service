@@ -1,12 +1,12 @@
 {
     "name": "chat-web-gateway-service",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "description": "Chat Web 微服务统一 API 网关",
     "author": "",
     "private": true,
     "license": "UNLICENSED",
     "scripts": {
-        "install": "node scripts/yarn-auth.cjs install --ignore-scripts",
+        "install": "node scripts/yarn-auth.cjs install --frozen-lockfile --check-files --ignore-scripts",
         "base:update": "node scripts/yarn-auth.cjs upgrade @wlisfes/chat-web-base-schema --latest",
         "build": "nest build",
         "format": "prettier --write \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \".github/workflows/*.yml\"",
