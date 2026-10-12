@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-10-12：新增 Task 服务间路由
+
+- 影响机器：`chat-home-server`。
+- 变更内容：部署时幂等补齐 `/feign/task` → `chat-web-task-service`（不剥离前缀）；Task 服务不对外暴露，迁移脚本发现 `/api/task` 时直接报错。
+- 依赖：`chat-web-task-service` 已在 Nacos 注册。
+- 机器侧操作：无。
+- 验证命令：公网 `/api/task/health/live` 返回业务 404；Skyline 调用 `/feign/task/cron/column` 正常。
+- 回滚方法：在 Gateway Nacos 删除 `feign-task` 路由并回退镜像。
+
 ## 2026-10-12：网关移除 Account 路由，调用方切换到 Skyline/Auth
 
 - 影响机器：chat-home-server Gateway。

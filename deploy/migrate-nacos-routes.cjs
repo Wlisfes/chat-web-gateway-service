@@ -62,7 +62,9 @@ const FEIGN_ROUTES = [
         prefix: '/feign/skyline',
         serviceName: 'chat-web-skyline-service',
         fallbackUrl: 'http://chat-web-skyline-service:5040'
-    }
+    },
+    // Task 服务只开放服务间入口；容器不发布宿主机端口，按 Nacos 注册的容器网卡 IP 访问。
+    { id: 'feign-task', prefix: '/feign/task', serviceName: 'chat-web-task-service', fallbackUrl: 'http://chat-web-task-service:5010' }
 ]
 
 /** 幂等地补齐一条网关路由；已存在同前缀配置时保持人工维护的内容不变。 */
@@ -134,6 +136,10 @@ function migrateRoutePrefixes(content) {
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/skyline['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Skyline prefix /api/skyline')
+    }
+    // Task 服务的接口不对外暴露：管理端经由 Skyline 转发，网关不得存在 /api/task 客户端入口。
+    if (/^[ \t]*prefix:[ \t]*['"]?\/api\/task(?:\/[^'"\s]*)?['"]?[ \t]*$/m.test(migrated)) {
+        throw new Error('Gateway Nacos config must not expose Task service through /api/task')
     }
     if (/^[ \t]*prefix:[ \t]*['"]?\/api['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must not contain the root prefix /api')
