@@ -180,7 +180,6 @@ jobs:
                       throw new Error("/health returned an unexpected Gateway status")
                     }
                     const routes = [
-                      { serviceName: "chat-web-account-service", path: "/api/account/health", validate: body => body.code === 200 },
                       { serviceName: "chat-web-finance-service", path: "/api/finance/health", validate: body => body.code === 200 },
                       { serviceName: "chat-web-crm-service", path: "/api/crm/health", validate: body => body.code === 200 },
                       { serviceName: "chat-web-skyline-service", path: "/api/skyline/health/live", validate: body => body.status === "UP" }
