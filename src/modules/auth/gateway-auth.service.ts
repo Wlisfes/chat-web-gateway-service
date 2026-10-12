@@ -130,24 +130,7 @@ export class GatewayAuthService implements OnApplicationBootstrap {
     }
 
     private isPublicPath(path: string, publicPath: string): boolean {
-        return this.matchesPathPrefix(path, publicPath) || this.matchesPathPrefix(path, this.getPublicPathAlias(publicPath))
-    }
-
-    private matchesPathPrefix(path: string, publicPath?: string): boolean {
-        return Boolean(publicPath) && (path === publicPath || path.startsWith(`${publicPath}/`))
-    }
-
-    private getPublicPathAlias(publicPath: string): string | undefined {
-        const accountAuthPrefix = '/api/account/auth/'
-        const authPrefix = '/api/auth/'
-
-        if (publicPath.startsWith(accountAuthPrefix)) {
-            return `${authPrefix}${publicPath.slice(accountAuthPrefix.length)}`
-        }
-        if (publicPath.startsWith(authPrefix)) {
-            return `${accountAuthPrefix}${publicPath.slice(authPrefix.length)}`
-        }
-        return undefined
+        return path === publicPath || path.startsWith(`${publicPath}/`)
     }
 
     private getPath(request: GatewayRequest): string {

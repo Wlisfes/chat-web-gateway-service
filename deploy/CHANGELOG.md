@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-10-12：网关移除 Account 路由，调用方切换到 Skyline/Auth
+
+- 影响机器：chat-home-server Gateway。
+- 变更内容：代码后备路由改为 Auth（5050）和 Skyline（5040），删除 `/api/account/auth` 兼容别名、Knife4j 兼容入口过滤和 `feign-account` 自动补齐；部署迁移不再要求 `/api/account`。Nacos `gateway.routes` 删除 `auth-account-compat`、`account`、`feign-account`。
+- 机器侧操作：先部署网关，再修改 Nacos 生产与开发 Data ID。
+- 验证命令：yarn test:full；`/api/auth/health`、`/api/skyline/health/live` 返回 UP，`/api/account/health` 返回 404，管理端登录正常。
+- 回滚方法：回退本次网关提交，并在 Nacos 恢复三条 Account 路由。
+
 ## 2026-09-24：网关访问日志记录请求体，业务异常日志补充执行方法
 
 - 影响机器：chat-home-server Gateway。

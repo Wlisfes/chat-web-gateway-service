@@ -16,7 +16,6 @@ docker inspect chat-web-gateway-service --format '{{json .HostConfig.LogConfig}}
 | 容器                 | `chat-web-gateway-service`                      |
 | 访问地址             | `http://127.0.0.1:5000`                         |
 | 健康检查             | `http://127.0.0.1:5000/health`                  |
-| Account 转发检查     | `http://127.0.0.1:5000/api/account/health`      |
 | Finance 转发检查     | `http://127.0.0.1:5000/api/finance/health`      |
 | CRM 转发检查         | `http://127.0.0.1:5000/api/crm/health`          |
 | Skyline 转发检查     | `http://127.0.0.1:5000/api/skyline/health/live` |
@@ -123,7 +122,7 @@ python -c "import socket; s=socket.create_connection(('chat-web-redis.lisfes.cn'
 
 ## P0 事故：同机服务注册 WireGuard 地址导致业务 503（2026-09-17）
 
-这是跨服务事故的主记录。Skyline、Finance、Auth、Account、CRM 与同机 Gateway 都适用。
+这是跨服务事故的主记录。Skyline、Finance、Auth、CRM 与同机 Gateway 都适用（Account 已于 2026-10-12 下线）。
 
 ### 影响
 
@@ -170,22 +169,19 @@ python -c "import socket; s=socket.create_connection(('chat-web-redis.lisfes.cn'
 在 WSL `Ubuntu-24.04` 执行；不要打印 `.env` 值。
 
 ```bash
-docker ps --filter name=chat-web-skyline-service --filter name=chat-web-finance-service --filter name=chat-web-auth-service --filter name=chat-web-account-service --filter name=chat-web-crm-service --filter name=chat-web-gateway-service
+docker ps --filter name=chat-web-skyline-service --filter name=chat-web-finance-service --filter name=chat-web-auth-service --filter name=chat-web-crm-service --filter name=chat-web-gateway-service
 docker exec chat-web-skyline-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-finance-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-auth-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
-docker exec chat-web-account-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-crm-service sh -c 'printf %s "${NACOS_REGISTER_IP-}"'
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/skyline/health/live').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/finance/health').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/auth/health').then(r=>r.text()).then(console.log)"
-docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/account/health').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/crm/health').then(r=>r.text()).then(console.log)"
 docker exec chat-web-gateway-service node -e "fetch('http://127.0.0.1:5000/api/auth/codex/write').then(r=>console.log(r.status))"
 curl -fsS https://chat.lisfes.cn/api/skyline/health/live
 curl -fsS https://chat.lisfes.cn/api/finance/health
 curl -fsS https://chat.lisfes.cn/api/auth/health
-curl -fsS https://chat.lisfes.cn/api/account/health
 curl -fsS https://chat.lisfes.cn/api/crm/health
 curl -fsS -o /dev/null -w '%{http_code}\n' https://chat.lisfes.cn/api/auth/codex/write
 curl -fsS http://127.0.0.1:5040/health/live
@@ -282,8 +278,7 @@ gateway:
         maxAgeSeconds: 60
     auth:
         enabled: true
-        # 内省路径固定；内省目标不在此配置，而是取 routes 中 id 为 auth 的路由，
-        # 未配置该路由时回退到 id 为 account 的路由。
+        # 内省路径固定；内省目标不在此配置，而是取 routes 中 id 为 auth 的路由。
         introspectionPath: /internal/auth/token/introspect
         timeoutMs: 3000
         # 显式声明后会覆盖默认值，因此必须把健康检查和文档路径一并列出。
@@ -307,14 +302,6 @@ gateway:
               enabled: true
           }
         # 服务间入口：必须 stripPrefix: false，否则会打到同名的公开业务路由上。
-        - {
-              id: feign-account,
-              prefix: /feign/account,
-              serviceName: chat-web-account-service,
-              fallbackUrl: 'http://chat-web-account-service:5010',
-              enabled: true,
-              stripPrefix: false
-          }
         - {
               id: feign-finance,
               prefix: /feign/finance,
@@ -347,8 +334,8 @@ gateway:
 **安全约束**：云端 Nginx 只能转发 `/api/*`。`/feign/*` 一旦对公网开放，服务间接口就只剩共享凭据保护。验证方式：
 
 ```bash
-curl -i https://chat-web.lisfes.cn/feign/account/consumer/select        # 必须 404
-curl -i -H 'x-gateway-principal: forged' -X POST https://chat-web.lisfes.cn/api/account/user/column   # 必须 401
+curl -i https://chat-web.lisfes.cn/feign/skyline/user/resolve          # 必须 404
+curl -i -H 'x-gateway-principal: forged' -X POST https://chat-web.lisfes.cn/api/skyline/deploy/user/column   # 必须 401
 ```
 
 Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负责 TLS 和 WireGuard 转发，本机 Nginx 将请求代理到 `chat-web-dozzle:8080`。`logs.lisfes.com` 仅保留为本机直连兼容入口，不作为公网域名。
@@ -430,11 +417,11 @@ docker exec chat-web-nginx nginx -s reload
 
 启用入口认证前，必须在 Gateway Nacos `gateway.auth` 中配置 `enabled: true`、`introspectionPath: /internal/auth/token/introspect`、`timeoutMs` 和公开路径数组，并在 Gateway Nacos `gateway.feign.service_token` 写入真实凭据；Auth Nacos `gateway.feign.service_token` 必须使用同一个真实凭据。凭据只写入 Nacos，不写入 `.env`、镜像、仓库或日志。Gateway 会通过 Nacos `id: auth` 路由的服务发现或 `fallbackUrl` 调用内部接口，内部认证路径不能加入 `gateway.routes`。
 
-Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Account/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
+Gateway 没有业务数据库或业务 Redis 所有权，不得配置 Skyline/Finance MySQL 连接或直接读取其 Redis index。所有业务访问只通过现有 Nacos 路由或显式服务 URL 转发。
 
 部署主机上的 `$DEPLOY_PATH/.env` 由 `runner:runner` 持有并使用 `0600` 权限，供专用 Runner 读取 Nacos 建连参数；如果文件被 root 创建，先执行 `chown runner:runner "$DEPLOY_PATH/.env" && chmod 600 "$DEPLOY_PATH/.env"`，不要放宽为全局可读。
 
-部署会把遗留 `/api/windows/finance`、Account 根前缀 `/api` 幂等迁移为 `/api/finance`、`/api/account`，并验证两个服务的健康接口响应体 `code=200`。若迁移失败，先核对本机 Gateway Data ID 是否同时包含 Account 与 Finance 路由；不要手工复制历史机器的完整 Nacos 配置。
+部署会把遗留 `/api/windows/finance` 幂等迁移为 `/api/finance`，并验证 Finance、CRM 等路由存在。Account 已下线，部署不再补齐或校验 `/api/account`、`/feign/account`。若迁移失败，先核对本机 Gateway Data ID 是否包含 Finance 路由；不要手工复制历史机器的完整 Nacos 配置。
 
 ### 文档页首次加载慢
 
@@ -455,23 +442,23 @@ docker inspect chat-web-gateway-service --format "{{.Config.Image}} {{.State.Sta
 docker inspect chat-web-gateway-service --format "{{json .HostConfig.LogConfig}}"
 docker logs --tail 200 chat-web-gateway-service
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/health
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/account/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/auth/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/finance/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/crm/health
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/api/skyline/health/live
 curl -kfsS https://chat-web.lisfes.cn/health
 curl -kfsS https://chat-web.lisfes.cn/api/skyline/health/live
-curl -k -i -X OPTIONS https://chat-web.lisfes.cn/api/account/auth/token/login -H "Origin: https://chat.lisfes.cn" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"
-curl -k -i https://chat-web.lisfes.cn/api/account/user/resolver
+curl -k -i -X OPTIONS https://chat-web.lisfes.cn/api/auth/token/login -H "Origin: https://chat.lisfes.cn" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: content-type"
+curl -k -i -X POST https://chat-web.lisfes.cn/api/skyline/deploy/user/resolver
 ```
 
-日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/account/consumer/**` 转发。
+日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。Gateway 请求日志会记录 `logId`、服务前缀 URL、状态码和耗时，但不会新增 Consumer 服务路由；Consumer 始终通过 `/api/crm/consumer/**` 转发。
 
 跨域预检应返回 `204`，并包含 `Access-Control-Allow-Origin: https://chat.lisfes.cn`、`Access-Control-Allow-Credentials: true`，且 `Access-Control-Allow-Headers` 包含 `Content-Type`。实际代理响应也必须返回相同的精确 Origin，不能返回 `*`。Origin 和凭据策略统一维护在云端 Nacos `gateway.cors`；Gateway 不透传下游服务的 `Access-Control-*` 响应头，Nginx 不重复生成 CORS 响应头。
 
 启用入口认证后，最后一条未携带 Token 的业务请求应返回 `401`；登录、验证码、健康检查、Swagger 和 CORS 预检仍应正常返回。若返回 `503`，先检查 Auth 容器健康、Nacos `id: auth` 服务发现和两端 `gateway.feign.service_token` 是否一致；不得在日志中打印凭据。
 
-`/health` 中 `source` 为 `fallback` 表示 Account 尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。
+`/health` 中 `source` 为 `fallback` 表示下游服务尚未注册到 Nacos，但 Docker 后备地址仍可用；`healthyInstances` 大于 0 表示已通过 Nacos 服务发现。
 
 ### 2. 检查 Nacos 和 Docker 网络
 
@@ -480,7 +467,7 @@ docker network inspect chat-web-infrastructure
 docker logs --tail 100 chat-web-nacos
 ```
 
-Gateway、Account、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5010`、`5020`、`5030`、`5040` 端口。公网 `chat-web.lisfes.cn` 由云端 Nginx 经 WireGuard 转发到本机 `10.66.0.2:80`，本机入口再转发到 Gateway `5000`。
+Gateway、Auth、CRM、Finance、Skyline、Nacos 必须加入 `chat-web-infrastructure`。Nacos 必须存在 `chat-web-gateway-service.yaml`，各服务后备地址分别使用容器名与 `5020`（CRM）、`5030`（Finance）、`5040`（Skyline）、`5050`（Auth）端口。公网 `chat-web.lisfes.cn` 由云端 Nginx 经 WireGuard 转发到本机 `10.66.0.2:80`，本机入口再转发到 Gateway `5000`。
 
 ### 3. 检查 chat-home-server Runner
 
@@ -505,8 +492,8 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 | 部署一直 Queued        | `chat-home-server` 的 Gateway Runner 离线                     | 启动 WSL 并重启 Gateway Runner                                        |
 | 5000 拒绝连接          | Gateway 未部署或未通过健康检查                                | 查看容器状态和日志，核对 `/opt` 下 `.env`                             |
 | Nacos 配置不存在       | Namespace ID、Data ID 或 Group 不一致                         | 核对本机 Namespace 和 `chat-web-gateway-service.yaml`                 |
-| Account 转发 502       | Account 容器不可达且 Nacos 无健康实例                         | 检查 Account 健康和 Docker 网络                                       |
-| `healthyInstances: 0`  | Account 尚未注册到 Nacos                                      | 部署包含 Account 注册逻辑的新镜像；fallback 可暂时继续服务            |
+| 下游转发 502           | 下游容器不可达且 Nacos 无健康实例                             | 检查对应服务健康和 Docker 网络                                        |
+| `healthyInstances: 0`  | 下游服务尚未注册到 Nacos                                      | 检查对应服务 Nacos 注册；fallback 可暂时继续服务                      |
 | 业务请求统一返回 `401` | Gateway `gateway.auth.publicPaths` 缺少登录、验证码或文档路径 | 补齐 Nacos 公开路径后等待配置订阅生效，再验证预检和登录               |
 | Gateway 认证返回 `503` | Auth 内部认证接口不可达或服务凭据缺失/不一致                  | 检查 Auth 健康、Docker 网络及两端 Nacos 凭据；不要关闭下游权限校验 |
 | 管理端 CORS 预检失败   | Nacos 未启用凭据或未允许管理端 Origin                         | 核对 `gateway.cors`，再确认响应允许 `Content-Type` 请求头             |
@@ -517,12 +504,12 @@ Actions 应满足：Build 成功、`Deploy to chat-home-server` 成功。容器�
 
 ## 恢复顺序
 
-1. 启动 Docker Desktop、Nacos 和 Account。
+1. 启动 Docker Desktop、Nacos、Auth 和 Skyline。
 2. 确认 `chat-web-infrastructure` 网络和 Gateway Nacos 配置存在。
 3. 确认 `/opt/chat-web-gateway-service/.env` 使用本机 Namespace ID。
 4. 启动 WSL 保活任务和 Gateway Runner。
 5. 在 GitHub Actions 手动运行当前稳定分支的 `Build and deploy`。
-6. 验证镜像 SHA、Gateway 健康和 Account 转发。
+6. 验证镜像 SHA、Gateway 健康和 Auth/Skyline 转发。
 
 每次处理完成后，把新原因和恢复命令补充到 `deploy/CHANGELOG.md`。
 
