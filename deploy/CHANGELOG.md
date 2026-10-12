@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-10-12：移除 Account 5010 防火墙端口
+
+- 影响机器：`chat-home-server`。
+- 变更内容：`allow-wireguard-infrastructure.ps1` 不再放行已下线 Account 服务端口 `5010`；Account 容器、镜像、部署目录、Runner、MySQL 库与 Nacos 配置已全部删除。
+- 机器侧操作：以管理员身份重新执行 `deploy/allow-wireguard-infrastructure.ps1`，使现有防火墙规则移除 `5010`。
+- 验证命令：`Get-NetFirewallRule -DisplayName "Chat Web infrastructure via WireGuard" | Get-NetFirewallPortFilter` 不含 `5010`。
+- 回滚方法：无需回滚；Account 服务不再运行。
+
 ## 2026-10-12：网关移除 Account 路由，调用方切换到 Skyline/Auth
 
 - 影响机器：chat-home-server Gateway。
