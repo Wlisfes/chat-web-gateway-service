@@ -374,7 +374,7 @@ Redis 客户端使用明文连接（不要使用 `rediss://`），填写域名�
 
 这些基础设施入口都是 TCP 端口，不能使用 Dozzle 的 HTTP 检查方式；如果连接失败，依次检查 DNS、安全组、云端 Nginx `stream` 配置、WireGuard 到 `10.66.0.2` 的连通性及本机防火墙。RabbitMQ 管理台使用 `https://chat-web-rabbitmq.lisfes.cn/`，Nacos 控制台使用 `https://chat-web-nacos.lisfes.cn/nacos/`。
 
-本机 Windows 防火墙只允许 `chat-web-home` WireGuard 接口访问必要端口（服务实例 `5000`、`5020`–`5050`，`18080`–`18083`，以及现有 HTTP、MySQL、Nacos 入口；Account `5010` 已于 2026-10-12 随服务下线移除），不再放行旧的 RabbitMQ/Kafka 端口 `5672`、`15672`、`9092`。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建四条本机回环代理，并清理旧的 `6379`、`16379`、`5672`、`15672`、`9092` 监听规则。首次配置、Docker Desktop 重启后公网 Redis 连不上、或 `18080` 没有 LISTENING 时运行以下命令。脚本会弹出 UAC，重建代理，并安装开机/每 5 分钟自动修复任务：
+本机 Windows 防火墙只允许 `chat-web-home` WireGuard 接口访问必要端口（服务实例 `5000`–`5050`，`5010` 暂时保留供后续服务复用；`18080`–`18083` 以及现有 HTTP、MySQL、Nacos 入口），不再放行旧的 RabbitMQ/Kafka 端口 `5672`、`15672`、`9092`。由于 Docker Desktop 的端口发布默认不能从 WireGuard 地址直接访问，脚本会幂等创建四条本机回环代理，并清理旧的 `6379`、`16379`、`5672`、`15672`、`9092` 监听规则。首次配置、Docker Desktop 重启后公网 Redis 连不上、或 `18080` 没有 LISTENING 时运行以下命令。脚本会弹出 UAC，重建代理，并安装开机/每 5 分钟自动修复任务：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File F:\chat-web-service\chat-web-gateway-service\deploy\allow-wireguard-infrastructure.ps1
