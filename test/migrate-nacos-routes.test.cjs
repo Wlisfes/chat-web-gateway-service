@@ -157,13 +157,42 @@ test('Nacos 迁移补齐服务间 /feign 路由并保留前缀', () => {
 
     const migrated = migrateGatewayConfig(content)
 
-    for (const service of ['auth', 'finance', 'crm', 'skyline']) {
+    for (const service of ['auth', 'finance', 'crm', 'skyline', 'task']) {
         assert.match(migrated, new RegExp(`prefix: /feign/${service}`))
     }
     // 服务间路由必须显式关闭前缀剥离，否则会打到同名的公开业务路由上。
-    assert.equal(migrated.match(/stripPrefix: false/g).length, 4)
+    assert.equal(migrated.match(/stripPrefix: false/g).length, 5)
+    assert.match(migrated, /serviceName: chat-web-task-service/)
+    assert.doesNotMatch(migrated, /prefix: \/api\/task/)
     assert.doesNotMatch(migrated, /\/feign\/account/)
 
     // 二次执行保持幂等，不会重复追加路由。
     assert.equal(migrateGatewayConfig(migrated), migrated)
+})
+
+test('Nacos 迁移拒绝通过 /api/task 暴露 Task 服务', () => {
+    const content = [
+        'gateway:',
+        '    routes:',
+        '        - id: skyline',
+        '          prefix: /api/skyline',
+        '          serviceName: chat-web-skyline-service',
+        '          fallbackUrl: http://chat-web-skyline-service:5040',
+        '          enabled: true',
+        '        - id: finance',
+        '          prefix: /api/finance',
+        '          serviceName: chat-web-finance-service',
+        '          fallbackUrl: http://chat-web-finance-service:5030',
+        '          enabled: true',
+        '        - id: task',
+        '          prefix: /api/task',
+        '          serviceName: chat-web-task-service',
+        '          fallbackUrl: http://chat-web-task-service:5010',
+        '          enabled: true',
+        'nacos:',
+        '    discovery:',
+        '        enabled: true'
+    ].join('\n')
+
+    assert.throws(() => migrateGatewayConfig(content), /must not expose Task service through \/api\/task/)
 })
