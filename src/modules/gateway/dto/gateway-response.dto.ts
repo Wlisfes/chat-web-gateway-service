@@ -8,13 +8,13 @@ export class DocumentationRedirectResponseDto {
 
 /** GatewayInfoResponseDto.routes 字段结构；查看网关信息及已配置路由响应：GET /gateway。 */
 export class GatewayRouteInfoResponseDto {
-    @ApiProperty({ description: '路由 ID', example: 'account-service' })
+    @ApiProperty({ description: '路由 ID', example: 'skyline' })
     id: string
 
-    @ApiProperty({ description: '公开路由路径', example: '/api/account/**' })
+    @ApiProperty({ description: '公开路由路径', example: '/api/skyline/**' })
     path: string
 
-    @ApiProperty({ description: 'Nacos 服务名称', example: 'chat-web-account-service' })
+    @ApiProperty({ description: 'Nacos 服务名称', example: 'chat-web-skyline-service' })
     serviceName: string
 }
 
@@ -65,10 +65,10 @@ export class NacosStatusResponseDto {
 
 /** GatewayHealthResponseDto.routes 字段结构；响应：GET /health、GET /health/ready（网关健康检查；网关就绪检查）。 */
 export class GatewayRouteHealthResponseDto {
-    @ApiProperty({ description: '路由 ID', example: 'account-service' })
+    @ApiProperty({ description: '路由 ID', example: 'skyline' })
     id: string
 
-    @ApiProperty({ description: 'Nacos 服务名称', example: 'chat-web-account-service' })
+    @ApiProperty({ description: 'Nacos 服务名称', example: 'chat-web-skyline-service' })
     serviceName: string
 
     @ApiProperty({ description: '健康实例数量', example: 1 })

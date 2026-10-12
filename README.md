@@ -5,7 +5,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 ## 第一版能力
 
 - 从 Nacos `chat-web-gateway-service.yaml` 动态读取全部服务路由和跨域白名单。
-- `/api/account/**` 转发到 `chat-web-account-service`，转发时移除 `/api/account` 服务前缀。
+- `/api/auth/**` 转发到 `chat-web-auth-service`，转发时移除 `/api/auth` 服务前缀。
 - `/api/finance/**` 优先转发到 `chat-web-finance-service`，转发时移除 `/api/finance` 前缀。
 - `/api/crm/**` 转发到 `chat-web-crm-service`，转发时移除 `/api/crm` 前缀。
 - `/api/skyline/**` 转发到 `chat-web-skyline-service`，转发时移除 `/api/skyline` 前缀。
@@ -21,13 +21,14 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 
 | 客户端地址                     | 下游服务地址       |
 | ------------------------------ | ------------------ |
-| `GET /api/account/health`      | `GET /health`      |
-| `/api/account/users/**`        | `/users/**`        |
+| `GET /api/auth/health`         | `GET /health`      |
+| `/api/auth/token/**`           | `/token/**`        |
 | `GET /api/finance/health`      | `GET /health`      |
 | `/api/finance/brand/**`        | `/brand/**`        |
 | `GET /api/crm/health`          | `GET /health`      |
 | `/api/crm/sms/**`              | `/sms/**`          |
 | `GET /api/skyline/health/live` | `GET /health/live` |
+| `/api/skyline/deploy/user/**`  | `/deploy/user/**`  |
 
 网关现在负责入口身份认证：受保护的 `/api/**` 请求会先通过 Auth 的内部认证协议校验 Bearer Token，再转发到下游服务。Auth 负责签发 Token、维护 Redis 会话和撤销会话；下游服务只校验 Gateway 签发的身份上下文，权限校验和数据访问控制仍由各业务服务负责。
 
@@ -45,7 +46,7 @@ yarn dev
 - 网关信息：`http://127.0.0.1:5000/gateway`
 - 健康检查：`http://127.0.0.1:5000/health`
 - 网关 Swagger：`http://127.0.0.1:5000/api/swagger`
-- 账号服务：`http://127.0.0.1:5000/api/account/**`
+- 鉴权服务：`http://127.0.0.1:5000/api/auth/**`
 - 财务服务：`http://127.0.0.1:5000/api/finance/**`
 - CRM 服务：`http://127.0.0.1:5000/api/crm/**`
 - Skyline 服务：`http://127.0.0.1:5000/api/skyline/**`
@@ -99,8 +100,8 @@ gateway:
             - /services.json
             - /api/swagger
             - /api/swagger-json
-            - /api/account/auth/codex/write
-            - /api/account/auth/token/login
+            - /api/auth/codex/write
+            - /api/auth/token/login
     trustProxy: false
     proxy:
         timeoutMs: 30000
@@ -114,10 +115,10 @@ gateway:
             - https://chat.example.com
         credentials: true
     routes:
-        - id: account
-          prefix: /api/account
-          serviceName: chat-web-account-service
-          fallbackUrl: http://chat-web-account-service:5010
+        - id: auth
+          prefix: /api/auth
+          serviceName: chat-web-auth-service
+          fallbackUrl: http://chat-web-auth-service:5050
           fallbackEnabled: false
           enabled: true
         - id: finance
@@ -150,7 +151,7 @@ nacos:
 
 `gateway.auth.enabled` 开启后，网关会使用 `id: auth` 路由的 Nacos 服务发现或 `fallbackUrl` 请求内部认证接口。Gateway Nacos 与 Auth Nacos 的 `gateway.feign.service_token` 必须使用同一个真实凭据，真实值不得提交到 Git 或写入 `.env`。网关认证接口不加入 `gateway.routes`，只能通过 Docker 内部网络或服务发现访问。
 
-`publicPaths` 用于声明不需要用户登录的网关路径；登录、验证码、健康检查和 Swagger 必须保留在列表中。新增公开接口时先更新 Nacos 配置，再验证 CORS 和未登录访问结果。认证失败返回 `401`，Account 不可用返回 `503`。
+`publicPaths` 用于声明不需要用户登录的网关路径；登录、验证码、健康检查和 Swagger 必须保留在列表中。新增公开接口时先更新 Nacos 配置，再验证 CORS 和未登录访问结果。认证失败返回 `401`，Auth 不可用返回 `503`。
 
 跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，必须把该 Origin 加入白名单。
 

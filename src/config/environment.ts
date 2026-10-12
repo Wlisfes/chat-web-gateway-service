@@ -11,8 +11,10 @@ export function validateEnvironment(environment: Record<string, unknown>): Recor
     parseCorsOrigins(environment.CORS_ORIGINS, ['*'], 'CORS_ORIGINS')
     getBoolean(environment.CORS_CREDENTIALS, false)
 
-    const accountServiceUrl = readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:5010')
-    normalizeHttpUrl(accountServiceUrl, 'ACCOUNT_SERVICE_URL')
+    const authServiceUrl = readString(environment.AUTH_SERVICE_URL, 'http://127.0.0.1:5050')
+    normalizeHttpUrl(authServiceUrl, 'AUTH_SERVICE_URL')
+    const skylineServiceUrl = readString(environment.SKYLINE_SERVICE_URL, 'http://127.0.0.1:5040')
+    normalizeHttpUrl(skylineServiceUrl, 'SKYLINE_SERVICE_URL')
     const financeServiceUrl = readString(environment.FINANCE_SERVICE_URL, 'http://127.0.0.1:5030')
     normalizeHttpUrl(financeServiceUrl, 'FINANCE_SERVICE_URL')
 
@@ -171,10 +173,19 @@ export function getCorsOptions(originsValue: unknown, credentialsValue: unknown)
 export function getFallbackGatewayRoutes(environment: Record<string, unknown>): GatewayRouteConfig[] {
     return [
         {
-            id: 'account',
-            prefix: '/api/account',
-            serviceName: readString(environment.ACCOUNT_SERVICE_NAME, 'chat-web-account-service'),
-            fallbackUrl: normalizeHttpUrl(readString(environment.ACCOUNT_SERVICE_URL, 'http://127.0.0.1:5010'), 'ACCOUNT_SERVICE_URL'),
+            id: 'auth',
+            prefix: '/api/auth',
+            serviceName: readString(environment.AUTH_SERVICE_NAME, 'chat-web-auth-service'),
+            fallbackUrl: normalizeHttpUrl(readString(environment.AUTH_SERVICE_URL, 'http://127.0.0.1:5050'), 'AUTH_SERVICE_URL'),
+            fallbackEnabled: false,
+            enabled: true,
+            stripPrefix: true
+        },
+        {
+            id: 'skyline',
+            prefix: '/api/skyline',
+            serviceName: readString(environment.SKYLINE_SERVICE_NAME, 'chat-web-skyline-service'),
+            fallbackUrl: normalizeHttpUrl(readString(environment.SKYLINE_SERVICE_URL, 'http://127.0.0.1:5040'), 'SKYLINE_SERVICE_URL'),
             fallbackEnabled: false,
             enabled: true,
             stripPrefix: true

@@ -51,12 +51,6 @@ const FEIGN_ROUTES = [
         fallbackUrl: 'http://chat-web-auth-service:5050'
     },
     {
-        id: 'feign-account',
-        prefix: '/feign/account',
-        serviceName: 'chat-web-account-service',
-        fallbackUrl: 'http://chat-web-account-service:5010'
-    },
-    {
         id: 'feign-finance',
         prefix: '/feign/finance',
         serviceName: 'chat-web-finance-service',
@@ -94,7 +88,6 @@ function ensureRoute(content, route) {
 function migrateRoutePrefixes(content) {
     let migrated = content
         .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api\/windows\/finance['"]?[ \t]*$/gm, '$1/api/finance')
-        .replace(/^([ \t]*prefix:[ \t]*)['"]?\/api['"]?[ \t]*$/gm, '$1/api/account')
         .replace(
             /\n {8}- id: skyline\r?\n {10}prefix: \/api\/skyline\r?\n {10}serviceName: chat-web-skyline-service\r?\n {10}fallbackUrl: http:\/\/chat-web-skyline-service:5040\r?\n {10}enabled: true\r?\n/g,
             '\n'
@@ -135,9 +128,6 @@ function migrateRoutePrefixes(content) {
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/finance['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the Finance prefix /api/finance')
-    }
-    if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/account['"]?[ \t]*$/m.test(migrated)) {
-        throw new Error('Gateway Nacos config must contain the Account prefix /api/account')
     }
     if (!/^[ \t]*prefix:[ \t]*['"]?\/api\/crm['"]?[ \t]*$/m.test(migrated)) {
         throw new Error('Gateway Nacos config must contain the CRM prefix /api/crm')

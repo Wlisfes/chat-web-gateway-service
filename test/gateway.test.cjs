@@ -44,26 +44,26 @@ test('网关不会透传下游服务的跨域响应头', () => {
 
 test('网关代理不记录探活和 Swagger JSON 转发日志', () => {
     const silentPaths = [
-        '/api/account/health',
-        '/api/account/health/live',
-        '/api/account/health/ready',
-        '/api/account/api/swagger-json',
-        '/feign/account/api/swagger-json?refresh=1'
+        '/api/skyline/health',
+        '/api/skyline/health/live',
+        '/api/skyline/health/ready',
+        '/api/skyline/api/swagger-json',
+        '/feign/skyline/api/swagger-json?refresh=1'
     ]
 
     for (const path of silentPaths) {
         assert.equal(shouldLogGatewayRequestPath(path), false, `${path} 不应记录转发日志`)
     }
-    assert.equal(shouldLogGatewayRequestPath('/api/account/sheet/column'), true)
-    assert.equal(shouldLogGatewayRequestPath('/api/account/health/detail'), true)
+    assert.equal(shouldLogGatewayRequestPath('/api/skyline/deploy/sheet/column'), true)
+    assert.equal(shouldLogGatewayRequestPath('/api/skyline/health/detail'), true)
 })
 
 test('网关向下游传递服务前缀且代理错误日志保留完整公开路径', async () => {
     const route = {
-        id: 'account',
-        prefix: '/api/account',
-        serviceName: 'chat-web-account-service',
-        fallbackUrl: 'http://127.0.0.1:5010',
+        id: 'skyline',
+        prefix: '/api/skyline',
+        serviceName: 'chat-web-skyline-service',
+        fallbackUrl: 'http://127.0.0.1:5040',
         enabled: true,
         stripPrefix: true
     }
@@ -99,17 +99,17 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
     const errors = []
 
     try {
-        const proxyResponse = await fetch(`${gatewayUrl}/api/account/sheet/update?source=manager`).then(response => response.json())
-        assert.equal(forwardedPrefix, '/api/account')
-        assert.equal(proxyResponse.url, '/sheet/update?source=manager')
+        const proxyResponse = await fetch(`${gatewayUrl}/api/skyline/deploy/sheet/update?source=manager`).then(response => response.json())
+        assert.equal(forwardedPrefix, '/api/skyline')
+        assert.equal(proxyResponse.url, '/deploy/sheet/update?source=manager')
         assert.equal(resolvedFallback, '')
 
         Logger.prototype.error = message => errors.push(message)
         targetUrl = 'http://127.0.0.1:1'
-        await fetch(`${gatewayUrl}/api/account/sheet/update?source=error`).then(response => response.json())
+        await fetch(`${gatewayUrl}/api/skyline/deploy/sheet/update?source=error`).then(response => response.json())
 
         assert.equal(errors.length, 1)
-        assert.match(errors[0], /^GET \/api\/account\/sheet\/update\?source=error -> chat-web-account-service：/)
+        assert.match(errors[0], /^GET \/api\/skyline\/deploy\/sheet\/update\?source=error -> chat-web-skyline-service：/)
     } finally {
         Logger.prototype.error = originalError
         await Promise.all([close(gatewayServer), close(downstreamServer)])
@@ -118,10 +118,10 @@ test('网关向下游传递服务前缀且代理错误日志保留完整公开�
 
 test('Nacos 没有可用实例时网关返回服务不可用业务码', async () => {
     const route = {
-        id: 'account',
-        prefix: '/api/account',
-        serviceName: 'chat-web-account-service',
-        fallbackUrl: 'http://127.0.0.1:5010',
+        id: 'skyline',
+        prefix: '/api/skyline',
+        serviceName: 'chat-web-skyline-service',
+        fallbackUrl: 'http://127.0.0.1:5040',
         enabled: true,
         stripPrefix: true
     }
@@ -132,7 +132,7 @@ test('Nacos 没有可用实例时网关返回服务不可用业务码', async ()
         },
         {
             resolveService: async () => {
-                throw new Error('Nacos 服务 chat-web-account-service 没有可用实例')
+                throw new Error('Nacos 服务 chat-web-skyline-service 没有可用实例')
             }
         }
     )
@@ -143,12 +143,12 @@ test('Nacos 没有可用实例时网关返回服务不可用业务码', async ()
     const gatewayUrl = `http://127.0.0.1:${gatewayServer.address().port}`
 
     try {
-        const response = await fetch(`${gatewayUrl}/api/account/sheet/column`)
+        const response = await fetch(`${gatewayUrl}/api/skyline/deploy/sheet/column`)
         assert.equal(response.status, 200)
         const body = await response.json()
         assert.equal(body.data, null)
         assert.equal(body.code, 503)
-        assert.equal(body.message, '服务 account 暂时不可用')
+        assert.equal(body.message, '服务 skyline 暂时不可用')
     } finally {
         await close(gatewayServer)
     }
@@ -156,10 +156,10 @@ test('Nacos 没有可用实例时网关返回服务不可用业务码', async ()
 
 test('服务间路由保留 /feign 前缀并下发签名身份上下文', async () => {
     const route = {
-        id: 'feign-account',
-        prefix: '/feign/account',
-        serviceName: 'chat-web-account-service',
-        fallbackUrl: 'http://127.0.0.1:5010',
+        id: 'feign-skyline',
+        prefix: '/feign/skyline',
+        serviceName: 'chat-web-skyline-service',
+        fallbackUrl: 'http://127.0.0.1:5040',
         enabled: true,
         stripPrefix: false
     }
@@ -188,8 +188,8 @@ test('服务间路由保留 /feign 前缀并下发签名身份上下文', async 
 
     try {
         // 服务间调用不经过用户认证，因此不下发身份上下文。
-        await fetch(`${gatewayUrl}/feign/account/consumer/resolve?keyId=12`).then(response => response.json())
-        assert.equal(received.url, '/feign/account/consumer/resolve?keyId=12')
+        await fetch(`${gatewayUrl}/feign/skyline/user/resolve?keyId=12`).then(response => response.json())
+        assert.equal(received.url, '/feign/skyline/user/resolve?keyId=12')
         assert.equal(received.principal, undefined)
     } finally {
         await Promise.all([close(gatewayServer), close(downstreamServer)])
@@ -420,9 +420,9 @@ test('网关入口静默探活与 Swagger JSON，同时保留业务请求日志'
             '/health/live',
             '/health/ready',
             '/api/swagger-json',
-            '/api/account/health/live',
-            '/api/account/api/swagger-json',
-            '/feign/account/api/swagger-json'
+            '/api/skyline/health/live',
+            '/api/skyline/api/swagger-json',
+            '/feign/skyline/api/swagger-json'
         ]
 
         for (const path of silentPaths) {
@@ -431,7 +431,7 @@ test('网关入口静默探活与 Swagger JSON，同时保留业务请求日志'
             assert.equal(response.finish, undefined, `${path} 不应注册完成日志`)
         }
 
-        const { request, response } = createHttpContext('/api/account/sheet/column')
+        const { request, response } = createHttpContext('/api/skyline/deploy/sheet/column')
         middleware(request, response, () => undefined)
         assert.equal(typeof response.finish, 'function')
         response.finish()
@@ -440,7 +440,7 @@ test('网关入口静默探活与 Swagger JSON，同时保留业务请求日志'
     }
 
     assert.equal(messages.length, 1)
-    assert.equal(messages[0].url, '/api/account/sheet/column')
+    assert.equal(messages[0].url, '/api/skyline/deploy/sheet/column')
 })
 
 function createHttpContext(path) {
@@ -475,12 +475,11 @@ const {
 
 test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
     const routes = [
-        route('account', '/api/account', 'chat-web-account-service'),
-        route('feign-account', '/feign/account', 'chat-web-account-service'),
-        route('account-alias', '/api/account-alias', 'chat-web-account-service'),
+        route('skyline', '/api/skyline', 'chat-web-skyline-service'),
+        route('feign-skyline', '/feign/skyline', 'chat-web-skyline-service'),
+        route('skyline-alias', '/api/skyline-alias', 'chat-web-skyline-service'),
         route('finance', '/api/finance', 'chat-web-finance-service'),
         route('feign-finance', '/feign/finance', 'chat-web-finance-service'),
-        route('auth-legacy', '/api/account/auth', 'chat-web-auth-service'),
         route('auth', '/api/auth', 'chat-web-auth-service'),
         { ...route('disabled', '/api/disabled', 'chat-web-disabled-service'), enabled: false }
     ]
@@ -493,10 +492,10 @@ test('Knife4j 只聚合每个服务的一份公开 API 文档', () => {
             location: '/api/swagger'
         },
         {
-            name: 'chat-web-account-service',
-            url: '/api/account/api/swagger-json',
+            name: 'chat-web-skyline-service',
+            url: '/api/skyline/api/swagger-json',
             swaggerVersion: '3.0.0',
-            location: '/api/account/api/swagger'
+            location: '/api/skyline/api/swagger'
         },
         {
             name: 'chat-web-finance-service',

@@ -84,11 +84,10 @@ export class ServiceConfigService {
         const auth =
             configured && typeof configured === 'object' && !Array.isArray(configured) ? (configured as Record<string, unknown>) : {}
         const enabled = getBoolean(auth.enabled, true)
-        // 认证目标优先使用鉴权服务路由；未迁移完成时回退到账号服务路由。
-        const routes = this.getGatewayRoutes()
-        const authRoute = routes.find(route => route.id === 'auth') ?? routes.find(route => route.id === 'account')
+        // 认证目标固定为鉴权服务路由。
+        const authRoute = this.getGatewayRoutes().find(route => route.id === 'auth')
         if (enabled && !authRoute) {
-            throw new Error('网关入口认证需要配置 auth 或 account 路由')
+            throw new Error('网关入口认证需要配置 auth 路由')
         }
 
         const publicPathsValue = auth.publicPaths
@@ -124,8 +123,8 @@ function getDefaultPublicPaths(): string[] {
         '/services.json',
         '/api/swagger',
         '/api/swagger-json',
-        '/api/account/auth/codex/write',
-        '/api/account/auth/token/login'
+        '/api/auth/codex/write',
+        '/api/auth/token/login'
     ]
 }
 

@@ -11,7 +11,7 @@ function createService(overrides = {}) {
         introspectionPath: '/internal/auth/token/introspect',
         timeoutMs: 3000,
         serviceToken: 'internal-token',
-        publicPaths: ['/api/account/auth/codex/write', '/api/account/auth/token/login'],
+        publicPaths: ['/api/auth/codex/write', '/api/auth/token/login'],
         ...overrides
     }
     const config = {
@@ -26,10 +26,10 @@ function createService(overrides = {}) {
                 stripPrefix: true
             },
             {
-                id: 'account',
-                prefix: '/api/account',
-                serviceName: 'chat-web-account-service',
-                fallbackUrl: 'http://127.0.0.1:5010',
+                id: 'skyline',
+                prefix: '/api/skyline',
+                serviceName: 'chat-web-skyline-service',
+                fallbackUrl: 'http://127.0.0.1:5040',
                 enabled: true,
                 stripPrefix: true
             }
@@ -39,7 +39,7 @@ function createService(overrides = {}) {
     return new GatewayAuthService(config, nacos)
 }
 
-for (const path of ['/api/account/auth/codex/write', '/api/auth/codex/write', '/api/account/auth/token/login', '/api/auth/token/login']) {
+for (const path of ['/api/auth/codex/write', '/api/auth/token/login']) {
     test(`网关认证跳过公开接口 ${path}`, async () => {
         const service = createService()
         const originalFetch = global.fetch
@@ -58,12 +58,12 @@ for (const path of ['/api/account/auth/codex/write', '/api/auth/codex/write', '/
 test('网关认证拒绝缺少 Bearer Token 的业务请求', async () => {
     const service = createService()
     await assert.rejects(
-        service.authenticate({ method: 'GET', originalUrl: '/api/account/user/resolve', header: () => undefined }),
+        service.authenticate({ method: 'GET', originalUrl: '/api/skyline/deploy/user/resolve', header: () => undefined }),
         error => error?.status === 401
     )
 })
 
-test('网关认证使用独立服务凭据调用 Account 并写入身份主体', async () => {
+test('网关认证使用独立服务凭据调用 Auth 并写入身份主体', async () => {
     const service = createService()
     const originalFetch = global.fetch
     let requestInit
@@ -80,7 +80,7 @@ test('网关认证使用独立服务凭据调用 Account 并写入身份主体',
     try {
         const request = {
             method: 'GET',
-            originalUrl: '/api/account/user/resolve',
+            originalUrl: '/api/skyline/deploy/user/resolve',
             header: name => {
                 if (name === 'authorization') return 'Bearer user-token'
                 if (name === 'x-request-id') return 'request-1'

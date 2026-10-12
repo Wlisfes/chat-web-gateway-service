@@ -11,10 +11,10 @@ test('Nacos 迁移会为跨域 API 补充管理端页面 Origin', () => {
         '            - https://old.example.com',
         '        credentials: false',
         '    routes:',
-        '        - id: account',
-        '          prefix: /api/account',
-        '          serviceName: chat-web-account-service',
-        '          fallbackUrl: http://chat-web-account-service:5010',
+        '        - id: skyline',
+        '          prefix: /api/skyline',
+        '          serviceName: chat-web-skyline-service',
+        '          fallbackUrl: http://chat-web-skyline-service:5040',
         '          enabled: true',
         'nacos:',
         '    discovery:',
@@ -31,10 +31,10 @@ test('Nacos 迁移会在缺少 CORS 时创建跨域配置', () => {
     const content = [
         'gateway:',
         '    routes:',
-        '        - id: account',
-        '          prefix: /api/account',
-        '          serviceName: chat-web-account-service',
-        '          fallbackUrl: http://chat-web-account-service:5010',
+        '        - id: skyline',
+        '          prefix: /api/skyline',
+        '          serviceName: chat-web-skyline-service',
+        '          fallbackUrl: http://chat-web-skyline-service:5040',
         '          enabled: true',
         'nacos:',
         '    discovery:',
@@ -54,10 +54,10 @@ test('Nacos 迁移启用 credentials 时不会保留星号 Origin', () => {
         '            - *',
         '        credentials: false',
         '    routes:',
-        '        - id: account',
-        '          prefix: /api/account',
-        '          serviceName: chat-web-account-service',
-        '          fallbackUrl: http://chat-web-account-service:5010',
+        '        - id: skyline',
+        '          prefix: /api/skyline',
+        '          serviceName: chat-web-skyline-service',
+        '          fallbackUrl: http://chat-web-skyline-service:5040',
         '          enabled: true',
         'nacos:',
         '    discovery:',
@@ -82,10 +82,10 @@ test('Nacos 迁移兼容两空格缩进和行内 Origin 数组', () => {
         '    ]',
         '    credentials: false',
         '  routes:',
-        '    - id: account',
-        '      prefix: /api/account',
-        '      serviceName: chat-web-account-service',
-        '      fallbackUrl: http://chat-web-account-service:5010',
+        '    - id: skyline',
+        '      prefix: /api/skyline',
+        '      serviceName: chat-web-skyline-service',
+        '      fallbackUrl: http://chat-web-skyline-service:5040',
         '      enabled: true',
         'nacos:',
         '  discovery:',
@@ -99,7 +99,7 @@ test('Nacos 迁移兼容两空格缩进和行内 Origin 数组', () => {
         /  cors:\n    allowedOrigins:\n      - https:\/\/chat\.lisfes\.cn\n      - https:\/\/old\.example\.com\n    credentials: true/
     )
     assert.doesNotMatch(migrated, /allowedOrigins: \[/)
-    assert.match(migrated, /  routes:\n    - id: account/)
+    assert.match(migrated, /  routes:\n    - id: skyline/)
 })
 
 test('完整迁移同时维护路由前缀和 CORS', () => {
@@ -110,10 +110,10 @@ test('完整迁移同时维护路由前缀和 CORS', () => {
         '            - https://old.example.com',
         '        credentials: false',
         '    routes:',
-        '        - id: account',
-        '          prefix: /api',
-        '          serviceName: chat-web-account-service',
-        '          fallbackUrl: http://chat-web-account-service:5010',
+        '        - id: skyline',
+        '          prefix: /api/skyline',
+        '          serviceName: chat-web-skyline-service',
+        '          fallbackUrl: http://chat-web-skyline-service:5040',
         '          enabled: true',
         '        - id: finance',
         '          prefix: /api/windows/finance',
@@ -127,7 +127,7 @@ test('完整迁移同时维护路由前缀和 CORS', () => {
 
     const migrated = migrateGatewayConfig(content)
 
-    assert.match(migrated, /prefix: \/api\/account/)
+    assert.doesNotMatch(migrated, /\/api\/account/)
     assert.match(migrated, /prefix: \/api\/finance/)
     assert.match(migrated, /prefix: \/api\/crm/)
     assert.match(migrated, /prefix: \/api\/skyline/)
@@ -140,10 +140,10 @@ test('Nacos 迁移补齐服务间 /feign 路由并保留前缀', () => {
     const content = [
         'gateway:',
         '    routes:',
-        '        - id: account',
-        '          prefix: /api/account',
-        '          serviceName: chat-web-account-service',
-        '          fallbackUrl: http://chat-web-account-service:5010',
+        '        - id: skyline',
+        '          prefix: /api/skyline',
+        '          serviceName: chat-web-skyline-service',
+        '          fallbackUrl: http://chat-web-skyline-service:5040',
         '          enabled: true',
         '        - id: finance',
         '          prefix: /api/finance',
@@ -157,11 +157,12 @@ test('Nacos 迁移补齐服务间 /feign 路由并保留前缀', () => {
 
     const migrated = migrateGatewayConfig(content)
 
-    for (const service of ['auth', 'account', 'finance', 'crm', 'skyline']) {
+    for (const service of ['auth', 'finance', 'crm', 'skyline']) {
         assert.match(migrated, new RegExp(`prefix: /feign/${service}`))
     }
     // 服务间路由必须显式关闭前缀剥离，否则会打到同名的公开业务路由上。
-    assert.equal(migrated.match(/stripPrefix: false/g).length, 5)
+    assert.equal(migrated.match(/stripPrefix: false/g).length, 4)
+    assert.doesNotMatch(migrated, /\/feign\/account/)
 
     // 二次执行保持幂等，不会重复追加路由。
     assert.equal(migrateGatewayConfig(migrated), migrated)
