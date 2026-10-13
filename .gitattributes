@@ -15,5 +15,6 @@ Dockerfile text eol=lf
 .gitattributes text eol=lf
 .gitignore text eol=lf
 .prettierrc text eol=lf
+.prettierignore text eol=lf
 .npmrc text eol=lf
 .dockerignore text eol=lf
