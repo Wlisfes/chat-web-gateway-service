@@ -57,6 +57,7 @@ const FEIGN_ROUTES = [
         fallbackUrl: 'http://chat-web-finance-service:5030'
     },
     { id: 'feign-crm', prefix: '/feign/crm', serviceName: 'chat-web-crm-service', fallbackUrl: 'http://chat-web-crm-service:5020' },
+    { id: 'feign-srm', prefix: '/feign/srm', serviceName: 'chat-web-srm-service', fallbackUrl: 'http://chat-web-srm-service:5070' },
     {
         id: 'feign-skyline',
         prefix: '/feign/skyline',

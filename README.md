@@ -8,6 +8,7 @@ Chat Web 多个微服务的统一 API 入口。网关不连接数据库，也不
 - `/api/auth/**` 转发到 `chat-web-auth-service`，转发时移除 `/api/auth` 服务前缀。
 - `/api/finance/**` 优先转发到 `chat-web-finance-service`，转发时移除 `/api/finance` 前缀。
 - `/api/crm/**` 转发到 `chat-web-crm-service`，转发时移除 `/api/crm` 前缀。
+- `/api/srm/**` 转发到 `chat-web-srm-service`，转发时移除 `/api/srm` 前缀。
 - `/api/skyline/**` 转发到 `chat-web-skyline-service`，转发时移除 `/api/skyline` 前缀。
 - 使用共享 `@wlisfes/chat-web-base-schema` Nacos 运行时发现健康服务实例，并按实例权重平滑轮询。
 - Nacos 不可用或没有健康实例时，使用各路由对应的 `*_SERVICE_URL` 后备地址。
