@@ -54,6 +54,8 @@ test('网关代理不记录探活和 Swagger JSON 转发日志', () => {
     for (const path of silentPaths) {
         assert.equal(shouldLogGatewayRequestPath(path), false, `${path} 不应记录转发日志`)
     }
+    assert.equal(shouldLogGatewayRequestPath('/api/skyline/api/swagger/swagger-ui-bundle.js'), false)
+    assert.equal(shouldLogGatewayRequestPath('/api/skyline/files/a.png'), false)
     assert.equal(shouldLogGatewayRequestPath('/api/skyline/deploy/sheet/column'), true)
     assert.equal(shouldLogGatewayRequestPath('/api/skyline/health/detail'), true)
 })
