@@ -1,5 +1,21 @@
 # 部署变更记录
 
+## 2026-11-03：Garage 管理台增加中英文界面
+
+- 影响机器：`chat-home-server`。Compose 项目 `chat-web-base-developer`，容器 `chat-web-garage-webui`。
+- 变更内容：基于 garage-webui 1.1.0 增加页面内中英文切换，并部署到本机。管理台只通过 Docker 网络访问 Garage Admin `3903`，不发布 Admin 端口。本机发布 `127.0.0.1:3909`。本机 Nginx 增加 `chat-web-garage-webui.lisfes.cn` 反代。
+- 机器侧操作：镜像为本地构建 `chat-web-garage-webui:i18n`。登录口令保存在 `C:/Users/admin/WorkBuddy/20260801231547/garage/webui-auth.txt`，不写入仓库。已为 `chat-web-garage-webui.lisfes.cn` 签发证书。云端 Nginx 终止 TLS 后转发到 `10.66.0.2:80`，再由本机 Nginx 转到 `chat-web-garage-webui:3909`。备份为 `/opt/chat-web-cloud/nginx.conf.bak-garage-webui`。
+- 验证命令：`http://127.0.0.1:3909` 返回管理界面；登录后 `GetClusterHealth` 返回 `healthy`。页面可在中文和 English 之间切换。
+- 回滚方法：`docker compose -f C:/Users/admin/WorkBuddy/20260801231547/docker-compose.yml stop garage-webui`，删除本机 `garage-webui.conf` 后 reload Nginx。禁止 `down -v`。
+
+## 2026-11-03：基础设施增加 Garage
+
+- 影响机器：`chat-home-server`。Compose 项目 `chat-web-base-developer`，容器 `chat-web-garage`。
+- 变更内容：单节点 Garage v2.5.0 接入 `chat-web-infrastructure`。S3 只发布到 `127.0.0.1:3900` 和 Docker 网络 `chat-web-garage:3900`。本机 Nginx 增加 `chat-web-garage.lisfes.cn` 反代。不经过业务 Gateway，Admin 3903 不发布。
+- 机器侧操作：已为 `chat-web-garage.lisfes.cn` 签发证书，云端 Nginx 终止 TLS 后转发到 `10.66.0.2:80`。备份为 `/opt/chat-web-cloud/nginx.conf.bak-garage`。
+- 验证命令：`https://chat-web-garage.lisfes.cn/chat-web/healthcheck/public.txt` 的 SigV4 PUT/GET 返回 200；未签名请求返回 Garage 403 XML。
+- 回滚方法：`docker compose -f C:/Users/admin/WorkBuddy/20260801231547/docker-compose.yml stop garage`，删除本机 `garage.conf` 后 reload Nginx。禁止 `down -v`。
+
 ## 2026-10-12：新增 Task 服务间路由
 
 - 影响机器：`chat-home-server`。
