@@ -350,6 +350,8 @@ Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负
 | `chat-web-rabbitmq` | `chat-web-rabbitmq.lisfes.cn` | AMQP TCP `5672`、管理台 HTTPS `443` / TCP `15672`            |
 | `chat-web-redis`    | `chat-web-redis.lisfes.cn`    | Redis TCP 公网 `6379`（WireGuard `18080`，本机回环 `16379`） |
 | `chat-web-kafka`    | `chat-web-kafka.lisfes.cn`    | Kafka TCP `9092`                                             |
+| `chat-web-garage`   | `chat-web-garage.lisfes.cn`   | S3 HTTPS `443`（本机回环 `127.0.0.1:3900`，Docker `chat-web-garage:3900`） |
+| `chat-web-garage-webui` | `chat-web-garage-webui.lisfes.cn` | 管理台 HTTPS `443`；本机也可直接开 `http://127.0.0.1:3909` |
 
 开发电脑无需安装 WireGuard。MySQL、Redis、RabbitMQ 和 Kafka 客户端分别使用上表域名及对应端口；MySQL 使用独立开发账号，不使用 `root`。公网基础设施链路如下：
 
@@ -357,6 +359,10 @@ Dozzle 公网入口为 `https://chat-web-dozzle.lisfes.cn`：云端 Nginx 只负
 - RabbitMQ AMQP：`chat-web-rabbitmq.lisfes.cn:5672` → WireGuard `10.66.0.2:18081` → 本机 `127.0.0.1:15674` → 容器 `5672`。
 - RabbitMQ 管理台：浏览器使用 `https://chat-web-rabbitmq.lisfes.cn/` → 本机 Nginx `80` → 容器 `chat-web-rabbitmq:15672`；需要 TCP 访问时，`chat-web-rabbitmq.lisfes.cn:15672` → WireGuard `10.66.0.2:18082` → 本机 `127.0.0.1:15673` → 容器 `15672`。
 - Kafka：`chat-web-kafka.lisfes.cn:9092` → WireGuard `10.66.0.2:18083` → 本机 `127.0.0.1:19092` → 容器 `9092`。
+
+- Garage：`https://chat-web-garage.lisfes.cn` → 云端 Nginx TLS → WireGuard `10.66.0.2:80` → 本机 Nginx → `chat-web-garage:3900`。同机服务用 `http://chat-web-garage:3900` 或 `http://127.0.0.1:3900`，region 为 `garage`，必须 `forcePathStyle`。不经过业务 Gateway。Admin `3903` 不发布。单节点没有副本。
+
+- Garage 管理台：浏览器使用 `https://chat-web-garage-webui.lisfes.cn` → 云端 Nginx TLS → WireGuard `10.66.0.2:80` → 本机 Nginx → `chat-web-garage-webui:3909`。界面支持中英文切换，选择保存在浏览器本地。Admin `3903` 仍不发布。登录账号保存在本机 `garage/webui-auth.txt`，不写入仓库。公网入口已启用：`https://chat-web-garage-webui.lisfes.cn`。
 
 本机端口代理由 `allow-wireguard-infrastructure.ps1` 幂等创建：`18080→16379`、`18081→15674`、`18082→15673`、`18083→19092`。阿里云安全组只应向受信任的开发电脑公网 IP 开放这些 TCP 端口（公网端口仍为 `6379`、`5672`、`15672`、`9092`），禁止向全网开放。
 
