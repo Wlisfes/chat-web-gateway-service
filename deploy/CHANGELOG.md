@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-11-08：开放 CRM、SRM 客户登录路径
+
+- 影响机器：`chat-home-server`。
+- 变更内容：默认公开路径增加 `/api/auth/token/crm/login`、`/api/auth/token/crm/register`、`/api/auth/token/srm/login`。生产 Nacos `gateway.auth.publicPaths` 已显式声明，必须同步追加这三条，否则会覆盖默认值并返回 401。
+- 机器侧操作：在 `chat-web-gateway-service.yaml` 的 `publicPaths` 中保留原有路径，并追加上述三条。无需改端口、证书或路由。
+- 验证命令：未登录 POST 上述三个路径不应返回网关 401；`GET /health` 仍为 UP。
+- 回滚方法：从 Nacos `publicPaths` 删除这三条，并回退 Gateway 镜像。
+
 ## 2026-11-03：Garage 管理台增加中英文界面
 
 - 影响机器：`chat-home-server`。Compose 项目 `chat-web-base-developer`，容器 `chat-web-garage-webui`。

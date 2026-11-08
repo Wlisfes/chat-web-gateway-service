@@ -292,6 +292,9 @@ gateway:
             - /api/swagger-json
             - /api/auth/codex/write
             - /api/auth/token/login
+            - /api/auth/token/crm/login
+            - /api/auth/token/crm/register
+            - /api/auth/token/srm/login
     routes:
         # 客户端入口：转发时剥离前缀。
         - {
