@@ -124,7 +124,10 @@ function getDefaultPublicPaths(): string[] {
         '/api/swagger',
         '/api/swagger-json',
         '/api/auth/codex/write',
-        '/api/auth/token/login'
+        '/api/auth/token/login',
+        '/api/auth/token/crm/login',
+        '/api/auth/token/crm/register',
+        '/api/auth/token/srm/login'
     ]
 }
 
