@@ -157,7 +157,7 @@ nacos:
 
 `publicPaths` 用于声明不需要用户登录的网关路径；登录、验证码、健康检查和 Swagger 必须保留在列表中。新增公开接口时先更新 Nacos 配置，再验证 CORS 和未登录访问结果。认证失败返回 `401`，Auth 不可用返回 `503`。
 
-跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，必须把该 Origin 加入白名单。
+跨域白名单必须填写完整 Origin，只允许 `http` 或 `https`，不能带路径。空数组表示禁止浏览器跨域访问；`allowedOrigins` 包含 `*` 时不能启用 `credentials`。如果管理端页面由 `https://chat.lisfes.cn` 提供，或客户门户由 `https://web.lisfes.cn` 提供，必须把对应 Origin 加入白名单。
 
 管理端验证码、登录和 Token 续期请求使用凭据，因此生产 Nacos 必须设置 `gateway.cors.credentials: true`；管理端不再依赖已废弃的 `Platform` 请求头。Origin 和凭据策略只由 Gateway 的 Nacos 配置维护，云端与本机 Nginx 不重复添加 CORS 响应头。
 

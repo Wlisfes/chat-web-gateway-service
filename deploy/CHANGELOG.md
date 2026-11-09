@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-11-08：客户门户加入跨域白名单
+
+- 影响机器：`chat-home-server`。
+- 变更内容：生产 Nacos `gateway.cors.allowedOrigins` 增加 `https://web.lisfes.cn`。客户门户验证码和登录请求带凭据访问 `https://chat-web.lisfes.cn`，缺少该 Origin 时浏览器会拦截图片。
+- 机器侧操作：已写入 `chat-web-gateway-service.yaml`，保留 `https://chat.lisfes.cn` 与 `http://localhost:4680`。
+- 验证命令：带 `Origin: https://web.lisfes.cn` 请求 `/api/auth/codex/write`，响应包含 `Access-Control-Allow-Origin: https://web.lisfes.cn` 和 `Access-Control-Allow-Credentials: true`。
+- 回滚方法：从 Nacos 白名单删除 `https://web.lisfes.cn`。
+
 ## 2026-11-08：开放 CRM、SRM 客户登录路径
 
 - 影响机器：`chat-home-server`。
