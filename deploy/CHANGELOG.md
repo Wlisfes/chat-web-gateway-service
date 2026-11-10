@@ -1,5 +1,21 @@
 # 部署变更记录
 
+## 2026-11-10：发布宿主机端口与 Nacos 长轮询超时
+
+- 影响机器：`chat-home-server`。
+- 变更内容：Compose 增加 `5000` 宿主机端口映射，与其他服务保持一致；升级 `@wlisfes/chat-web-base-schema` 到 1.7.38，Nacos 配置长轮询客户端超时由 40 秒延长到 180 秒。
+- 验证命令：`docker port chat-web-gateway-service` 输出 `5000/tcp -> 0.0.0.0:5000`；容器健康检查通过。
+- 回滚方法：恢复上一版本 Compose 并回退到上一镜像。
+
+
+## 2026-11-08：客户门户加入跨域白名单
+
+- 影响机器：`chat-home-server`。
+- 变更内容：生产 Nacos `gateway.cors.allowedOrigins` 增加 `https://web.lisfes.cn`。客户门户验证码和登录请求带凭据访问 `https://chat-web.lisfes.cn`，缺少该 Origin 时浏览器会拦截图片。
+- 机器侧操作：已写入 `chat-web-gateway-service.yaml`，保留 `https://chat.lisfes.cn` 与 `http://localhost:4680`。
+- 验证命令：带 `Origin: https://web.lisfes.cn` 请求 `/api/auth/codex/write`，响应包含 `Access-Control-Allow-Origin: https://web.lisfes.cn` 和 `Access-Control-Allow-Credentials: true`。
+- 回滚方法：从 Nacos 白名单删除 `https://web.lisfes.cn`。
+
 ## 2026-11-08：开放 CRM、SRM 客户登录路径
 
 - 影响机器：`chat-home-server`。
