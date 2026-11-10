@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-11-10：发布宿主机端口与 Nacos 长轮询超时
+
+- 影响机器：`chat-home-server`。
+- 变更内容：Compose 增加 `5000` 宿主机端口映射，与其他服务保持一致；升级 `@wlisfes/chat-web-base-schema` 到 1.7.38，Nacos 配置长轮询客户端超时由 40 秒延长到 180 秒。
+- 验证命令：`docker port chat-web-gateway-service` 输出 `5000/tcp -> 0.0.0.0:5000`；容器健康检查通过。
+- 回滚方法：恢复上一版本 Compose 并回退到上一镜像。
+
+
 ## 2026-11-08：客户门户加入跨域白名单
 
 - 影响机器：`chat-home-server`。
